@@ -1,20 +1,20 @@
-import { TextSmall } from '@/components/typography';
 import Map from './Map';
 import { TripStateProvider } from './TripState';
 import GoogleMapsAPIProvider from './GoogleMapsApiProvider';
+import Sidebar from './Sidebar';
 
-export default function Home() {
+export default function Home({ params }: { params: { tripId: string } }) {
   return (
     <GoogleMapsAPIProvider
       apiKey={process.env.NEXT_PUBLIC_GOOGLE_API_KEY ?? ''}
     >
-      <TripStateProvider>
+      <TripStateProvider tripSlug={params.tripId}>
         <div className="flex">
           <div className="w-[80%] h-screen">
             <Map />
           </div>
-          <div className="mx-1">
-            <TextSmall>Right side</TextSmall>
+          <div className="mx-3 mt-3">
+            <Sidebar />
           </div>
         </div>
       </TripStateProvider>

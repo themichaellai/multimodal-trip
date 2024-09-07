@@ -6,6 +6,7 @@ import React, {
   useContext,
   useMemo,
 } from 'react';
+import { addStopToTrip, db } from '../../lib/db';
 
 interface LatLng {
   lat: number;
@@ -36,12 +37,34 @@ export function useTripState() {
   return context;
 }
 
-export function TripStateProvider({ children }: PropsWithChildren) {
-  const [markers, setMarkers] = React.useState<Array<Marker>>([]);
+export function TripStateProvider({
+  children,
+  tripSlug,
+}: PropsWithChildren<{ tripSlug: string }>) {
+  const { data: stopsData } = db.useQuery({
+    trips: {
+      $: {
+        where: { slug: tripSlug },
+      },
+      stops: {},
+    },
+  });
   const addMarker = (marker: { coords: LatLng; placeId: string | null }) => {
-    setMarkers((prevMarkers) => [...prevMarkers, marker]);
+    addStopToTrip(tripSlug, marker.coords);
   };
-  const state = useMemo(() => ({ markers }), [markers]);
+  const state = useMemo((): TripState => {
+    if (stopsData == null || stopsData.trips.length === 0) {
+      return { markers: [] };
+    }
+    return {
+      markers: stopsData.trips[0].stops.map(
+        (s): Marker => ({
+          coords: { lat: s.lat, lng: s.lng },
+          placeId: null,
+        }),
+      ),
+    };
+  }, [stopsData]);
   return (
     <tripStateContext.Provider
       value={{
