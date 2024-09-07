@@ -15,8 +15,8 @@ export default function Sidebar({ tripSlug }: { tripSlug: string }) {
       <TextLarge>Stops</TextLarge>
       <ul>
         {stops.map((stop, index) => (
-          <li key={stop.id} className="flex items-center gap-2 py-3">
-            <TextSmall>{stop.name ?? 'Unnamed'}</TextSmall>
+          <li key={stop.id} className="flex items-center gap-2 py-3 h-9">
+            <TextSmall>{stop.name ?? 'Place'}</TextSmall>
             <div>
               {index < stops.length - 1 ? null : (
                 <Button

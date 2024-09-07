@@ -17,7 +17,7 @@ export function useTripState(tripSlug: string) {
     },
   });
   const addMarker = (marker: { coords: LatLng; placeId: string | null }) => {
-    addStopToTrip(tripSlug, marker.coords);
+    addStopToTrip(tripSlug, { coords: marker.coords, placeId: marker.placeId });
   };
   return {
     trip:
