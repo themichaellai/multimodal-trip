@@ -1,6 +1,11 @@
 'use client';
 
-import { Cross2Icon } from '@radix-ui/react-icons';
+import {
+  Cross2Icon,
+  DotIcon,
+  DotsVerticalIcon,
+  PlusIcon,
+} from '@radix-ui/react-icons';
 
 import { TextSmall, TextLarge } from '@/components/typography';
 import { Button } from '@/components/ui/button';
@@ -13,27 +18,41 @@ export default function Sidebar({ tripSlug }: { tripSlug: string }) {
   return (
     <>
       <TextLarge>Stops</TextLarge>
-      <ul>
+      <div>
         {stops.map((stop, index) => (
-          <li key={stop.id} className="flex items-center gap-2 py-3 h-9">
-            <TextSmall>{stop.name ?? 'Place'}</TextSmall>
-            <div>
-              {index < stops.length - 1 ? null : (
-                <Button
-                  onClick={() => {
-                    removeStop(stop.id);
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="p-1 h-auto"
-                >
-                  <Cross2Icon className="h-3 w-3" />
-                </Button>
-              )}
+          <>
+            <div key={stop.id} className="flex items-center gap-2 py-3 h-9">
+              <DotIcon className="h-5 w-5 text-muted-foreground" />
+              <TextSmall>{stop.name ?? 'Place'}</TextSmall>
+              <div>
+                {index < stops.length - 1 ? null : (
+                  <Button
+                    onClick={() => {
+                      removeStop(stop.id);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="p-1 h-auto"
+                  >
+                    <Cross2Icon className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
             </div>
-          </li>
+            {index >= stops.length - 1 ? null : (
+              <div
+                key={stop.id + 'foo'}
+                className="flex items-center gap-2 py-3 h-9"
+              >
+                <DotsVerticalIcon className="h-5 w-5 text-muted-foreground" />
+                <Button variant="outline" size="sm">
+                  <PlusIcon className="mr-1" /> Set transit
+                </Button>
+              </div>
+            )}
+          </>
         ))}
-      </ul>
+      </div>
     </>
   );
 }

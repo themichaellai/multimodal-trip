@@ -1,11 +1,22 @@
+import { cn } from '@/lib/utils';
 import { PropsWithChildren } from 'react';
 
-export function TextSmall(props: PropsWithChildren) {
+interface Props {
+  className?: string;
+}
+
+export function TextSmall(props: PropsWithChildren<Props>) {
   return (
-    <small className="text-sm font-medium leading-none">{props.children}</small>
+    <small className={cn('text-sm font-medium leading-none', props.className)}>
+      {props.children}
+    </small>
   );
 }
 
-export function TextLarge(props: PropsWithChildren) {
-  return <div className="text-lg font-semibold">{props.children}</div>;
+export function TextLarge(props: PropsWithChildren<Props>) {
+  return (
+    <div className={cn('text-lg font-semibold', props.className)}>
+      {props.children}
+    </div>
+  );
 }
