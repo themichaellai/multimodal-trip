@@ -7,7 +7,7 @@ interface Schema {
     slug: string;
   };
   stops: {
-    name: string;
+    name?: string;
     lat: number;
     lng: number;
   };
@@ -25,4 +25,8 @@ export function addStopToTrip(
     tx.stops[newStopId].update({ lat: coords.lat, lng: coords.lng }),
     tx.trips[lookup('slug', tripSlug)].link({ stops: newStopId }),
   ]);
+}
+
+export function removeStop(stopId: string) {
+  db.transact([tx.stops[stopId].delete()]);
 }

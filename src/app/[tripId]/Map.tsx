@@ -10,8 +10,12 @@ import { useTripState } from './TripState';
 
 const GOOGLE_MAP_ID = '6506bf1b2b7e5dd';
 
-export default function Map(props: MapProps) {
-  const { state, addMarker } = useTripState();
+export default function Map(
+  props: MapProps & {
+    tripSlug: string;
+  },
+) {
+  const { trip, addMarker } = useTripState(props.tripSlug);
   return (
     <GoogleMap
       style={{ width: '100%', height: '100%' }}
@@ -33,9 +37,11 @@ export default function Map(props: MapProps) {
       }}
       {...props}
     >
-      {state.markers.map((marker, i) => (
-        <AdvancedMarker key={i} position={marker.coords} />
-      ))}
+      {trip == null
+        ? null
+        : trip.stops.map((s, i) => (
+            <AdvancedMarker key={i} position={{ lat: s.lat, lng: s.lng }} />
+          ))}
     </GoogleMap>
   );
 }
