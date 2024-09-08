@@ -1,12 +1,8 @@
 import { redirect } from 'next/navigation';
-import { customAlphabet } from 'nanoid';
-
-// "nolookalikes" from nanoid-dictionary
-const nanoid = customAlphabet(
-  '346789ABCDEFGHJKLMNPQRTUVWXYabcdefghijkmnpqrtwxyz',
-  14,
-);
+import { fetchMutation } from 'convex/nextjs';
+import { api } from '../../convex/_generated/api';
 
 export async function GET() {
-  return redirect(`/${nanoid()}`);
+  const { slug } = await fetchMutation(api.trips.createTrip, {});
+  return redirect(`/${slug}`);
 }

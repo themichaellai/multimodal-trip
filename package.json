@@ -20,6 +20,7 @@
     "@vis.gl/react-google-maps": "^1.1.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "convex": "^1.15.0",
     "lucide-react": "^0.438.0",
     "nanoid": "^5.0.7",
     "next": "14.2.8",

@@ -13,22 +13,21 @@ import { useTripState } from './TripState';
 import { removeStop } from '../../lib/db';
 
 export default function Sidebar({ tripSlug }: { tripSlug: string }) {
-  const { trip } = useTripState(tripSlug);
-  const stops = trip?.stops ?? [];
+  const { trip, stops } = useTripState(tripSlug);
   return (
     <>
       <TextLarge>Stops</TextLarge>
       <div>
         {stops.map((stop, index) => (
           <>
-            <div key={stop.id} className="flex items-center gap-2 py-3 h-9">
+            <div key={index} className="flex items-center gap-2 py-3 h-9">
               <DotIcon className="h-5 w-5 text-muted-foreground" />
               <TextSmall>{stop.name ?? 'Place'}</TextSmall>
               <div>
                 {index < stops.length - 1 ? null : (
                   <Button
                     onClick={() => {
-                      removeStop(stop.id);
+                      removeStop(stop._id);
                     }}
                     variant="outline"
                     size="sm"
@@ -41,7 +40,7 @@ export default function Sidebar({ tripSlug }: { tripSlug: string }) {
             </div>
             {index >= stops.length - 1 ? null : (
               <div
-                key={stop.id + 'foo'}
+                key={stop._id + 'foo'}
                 className="flex items-center gap-2 py-3 h-9"
               >
                 <DotsVerticalIcon className="h-5 w-5 text-muted-foreground" />
