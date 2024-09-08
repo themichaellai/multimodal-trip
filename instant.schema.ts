@@ -12,6 +12,7 @@ const graph = i.graph(
       name: i.string(),
       lat: i.number(),
       lng: i.number(),
+      tripOrder: i.number(),
     }),
   },
   {

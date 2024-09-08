@@ -16,14 +16,19 @@ export function useTripState(tripSlug: string) {
       stops: {},
     },
   });
+  const trip =
+    stopsQuery.data == null || stopsQuery.data.trips.length === 0
+      ? null
+      : stopsQuery.data.trips[0];
   const addMarker = (marker: { coords: LatLng; placeId: string | null }) => {
-    addStopToTrip(tripSlug, { coords: marker.coords, placeId: marker.placeId });
+    addStopToTrip(tripSlug, {
+      coords: marker.coords,
+      placeId: marker.placeId,
+      prevStops: trip?.stops ?? [],
+    });
   };
   return {
-    trip:
-      stopsQuery.data == null || stopsQuery.data.trips.length === 0
-        ? null
-        : stopsQuery.data.trips[0],
+    trip,
     addMarker,
   };
 }

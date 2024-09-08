@@ -1,3 +1,4 @@
+import 'server-only';
 import { Client } from '@googlemaps/google-maps-services-js';
 import { type NextRequest } from 'next/server';
 import { z } from 'zod';
