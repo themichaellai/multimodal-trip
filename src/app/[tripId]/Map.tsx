@@ -15,7 +15,7 @@ export default function Map(
     tripSlug: string;
   },
 ) {
-  const { trip, stops, addMarker } = useTripState(props.tripSlug);
+  const { trip, stops, addStop } = useTripState(props.tripSlug);
   return (
     <GoogleMap
       style={{ width: '100%', height: '100%' }}
@@ -25,7 +25,6 @@ export default function Map(
       disableDefaultUI={true}
       mapId={GOOGLE_MAP_ID}
       onClick={(e) => {
-        console.log('onClick', trip);
         if (trip == null) {
           return;
         }
@@ -33,11 +32,12 @@ export default function Map(
           console.log('type', e.type);
           return;
         }
-        addMarker({
+        addStop({
           stop: {
             lat: e.detail.latLng.lat,
             lng: e.detail.latLng.lng,
             name: null,
+            googlePlaceId: e.detail.placeId ?? null,
           },
           tripId: trip?._id,
         });

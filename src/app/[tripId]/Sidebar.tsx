@@ -10,10 +10,9 @@ import {
 import { TextSmall, TextLarge } from '@/components/typography';
 import { Button } from '@/components/ui/button';
 import { useTripState } from './TripState';
-import { removeStop } from '../../lib/db';
 
 export default function Sidebar({ tripSlug }: { tripSlug: string }) {
-  const { trip, stops } = useTripState(tripSlug);
+  const { stops, removeStop } = useTripState(tripSlug);
   return (
     <>
       <TextLarge>Stops</TextLarge>
@@ -27,7 +26,7 @@ export default function Sidebar({ tripSlug }: { tripSlug: string }) {
                 {index < stops.length - 1 ? null : (
                   <Button
                     onClick={() => {
-                      removeStop(stop._id);
+                      removeStop({ stopId: stop._id });
                     }}
                     variant="outline"
                     size="sm"

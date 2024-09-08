@@ -1,8 +1,9 @@
 import { customAlphabet } from 'nanoid';
 
-import { mutation, query } from './_generated/server';
+import { internalMutation, mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import { Doc } from './_generated/dataModel';
+import { internal } from './_generated/api';
 
 // "nolookalikes" from nanoid-dictionary
 const nanoid = customAlphabet(
@@ -58,6 +59,13 @@ export const createTrip = mutation({
   },
 });
 
+export const setStopName = internalMutation({
+  args: { stopId: v.id('stops'), name: v.string() },
+  handler: async (ctx, params) => {
+    await ctx.db.patch(params.stopId, { name: params.name });
+  },
+});
+
 export const addStop = mutation({
   args: {
     tripId: v.id('trips'),
@@ -65,6 +73,7 @@ export const addStop = mutation({
       name: v.union(v.string(), v.null()),
       lat: v.number(),
       lng: v.number(),
+      googlePlaceId: v.union(v.string(), v.null()),
     }),
   },
   handler: async (ctx, params) => {
@@ -75,9 +84,46 @@ export const addStop = mutation({
     if (trip == null) {
       return;
     }
-    const newStopId = await ctx.db.insert('stops', params.stop);
+    const newStopId = await ctx.db.insert('stops', {
+      lat: params.stop.lat,
+      lng: params.stop.lng,
+      name: params.stop.name,
+      tripId: trip._id,
+    });
     await ctx.db.patch(trip._id, {
       stops: [...trip.stops, newStopId],
     });
+    if (params.stop.googlePlaceId != null) {
+      await ctx.scheduler.runAfter(0, internal.tripActions.getStopName, {
+        stopId: newStopId,
+        placeId: params.stop.googlePlaceId,
+      });
+    }
+  },
+});
+
+export const removeStop = mutation({
+  args: {
+    stopId: v.id('stops'),
+  },
+  handler: async (ctx, params) => {
+    const stop = await ctx.db
+      .query('stops')
+      .filter((q) => q.eq(q.field('_id'), params.stopId))
+      .first();
+    if (stop == null) {
+      return;
+    }
+    const trip = await ctx.db
+      .query('trips')
+      .filter((q) => q.eq(q.field('_id'), stop.tripId))
+      .first();
+
+    await ctx.db.delete(params.stopId);
+    if (trip != null) {
+      await ctx.db.patch(trip._id, {
+        stops: trip.stops.filter((s) => s !== params.stopId),
+      });
+    }
   },
 });

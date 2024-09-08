@@ -8,6 +8,7 @@ export default defineSchema({
   }),
   stops: defineTable({
     name: v.union(v.string(), v.null()),
+    tripId: v.id('trips'),
     lat: v.number(),
     lng: v.number(),
   }),

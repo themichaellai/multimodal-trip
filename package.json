@@ -13,8 +13,6 @@
   "dependencies": {
     "@googlemaps/google-maps-services-js": "^3.4.0",
     "@googlemaps/routing": "^1.3.0",
-    "@instantdb/admin": "^0.12.26",
-    "@instantdb/react": "^0.12.23",
     "@radix-ui/react-icons": "^1.3.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@vis.gl/react-google-maps": "^1.1.1",
