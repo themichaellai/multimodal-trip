@@ -1,6 +1,11 @@
 import { customAlphabet } from 'nanoid';
 
-import { internalMutation, mutation, query } from './_generated/server';
+import {
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from './_generated/server';
 import { v } from 'convex/values';
 import { Doc } from './_generated/dataModel';
 import { internal } from './_generated/api';
@@ -12,6 +17,8 @@ const nanoid = customAlphabet(
 );
 const createSlug = (): string => nanoid();
 
+type Stop = Doc<'stops'>;
+
 export const getBySlug = query({
   args: { slug: v.string() },
   handler: async (
@@ -20,6 +27,7 @@ export const getBySlug = query({
   ): Promise<{
     trip: Doc<'trips'>;
     stops: Array<Doc<'stops'>>;
+    estimates: Array<Doc<'transitTimes'>>;
   } | null> => {
     const trip = await ctx.db
       .query('trips')
@@ -32,11 +40,19 @@ export const getBySlug = query({
       .query('stops')
       .filter((q) => q.or(...trip.stops.map((s) => q.eq(q.field('_id'), s))))
       .collect();
+
+    const estimates = await ctx.db
+      .query('transitTimes')
+      .filter((q) =>
+        q.or(...trip.stops.map((s) => q.eq(q.field('stopIdFirst'), s))),
+      )
+      .collect();
     return {
       trip,
       stops: stops.sort(
         (a, b) => trip.stops.indexOf(a._id) - trip.stops.indexOf(b._id),
       ),
+      estimates,
     };
   },
 });
@@ -125,5 +141,132 @@ export const removeStop = mutation({
         stops: trip.stops.filter((s) => s !== params.stopId),
       });
     }
+  },
+});
+
+export const getStopById = internalQuery({
+  args: { stopId: v.id('stops') },
+  handler: async (ctx, params): Promise<Stop | null> => {
+    return ctx.db.get(params.stopId);
+  },
+});
+
+export const initTransitTimeEstimate = mutation({
+  args: {
+    stopIdFirst: v.id('stops'),
+    stopIdSecond: v.id('stops'),
+  },
+  handler: async (ctx, params) => {
+    // TODO: Add rate limiting
+    const existing = await ctx.db
+      .query('transitTimes')
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('stopIdFirst'), params.stopIdFirst),
+          q.eq(q.field('stopIdSecond'), params.stopIdSecond),
+        ),
+      )
+      .first();
+    if (existing == null) {
+      await ctx.db.insert('transitTimes', {
+        stopIdFirst: params.stopIdFirst,
+        stopIdSecond: params.stopIdSecond,
+        estimate: null,
+      });
+    } else {
+      await ctx.db.patch(existing._id, { estimate: null });
+    }
+    ctx.scheduler.runAfter(
+      0,
+      internal.tripActions.refreshTransitTimeEstimates,
+      {
+        stopIdFirst: params.stopIdFirst,
+        stopIdSecond: params.stopIdSecond,
+      },
+    );
+  },
+});
+
+export const setTransitTimeEstimate = internalMutation({
+  args: {
+    stopIdFirst: v.id('stops'),
+    stopIdSecond: v.id('stops'),
+    estimate: v.object({
+      walkSeconds: v.union(v.number(), v.null()),
+      transitSeconds: v.union(v.number(), v.null()),
+      bicycleSeconds: v.union(v.number(), v.null()),
+    }),
+  },
+  handler: async (ctx, params) => {
+    const existing = await ctx.db
+      .query('transitTimes')
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('stopIdFirst'), params.stopIdFirst),
+          q.eq(q.field('stopIdSecond'), params.stopIdSecond),
+        ),
+      )
+      .first();
+    if (existing == null) {
+      await ctx.db.insert('transitTimes', {
+        stopIdFirst: params.stopIdFirst,
+        stopIdSecond: params.stopIdSecond,
+        estimate: {
+          walkSeconds: params.estimate.walkSeconds,
+          transitSeconds: params.estimate.transitSeconds,
+          bicycleSeconds: params.estimate.bicycleSeconds,
+          type: 'list',
+        },
+      });
+    } else {
+      await ctx.db.patch(existing._id, {
+        estimate: {
+          walkSeconds: params.estimate.walkSeconds,
+          transitSeconds: params.estimate.transitSeconds,
+          bicycleSeconds: params.estimate.bicycleSeconds,
+          type: 'list',
+        },
+      });
+    }
+  },
+});
+
+export const selectTransitTimeEstimateMode = mutation({
+  args: {
+    stopIdFirst: v.id('stops'),
+    stopIdSecond: v.id('stops'),
+    mode: v.union(
+      v.literal('walk'),
+      v.literal('transit'),
+      v.literal('bicycle'),
+    ),
+  },
+  handler: async (ctx, params) => {
+    const existing = await ctx.db
+      .query('transitTimes')
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('stopIdFirst'), params.stopIdFirst),
+          q.eq(q.field('stopIdSecond'), params.stopIdSecond),
+        ),
+      )
+      .first();
+    if (
+      existing == null ||
+      (existing.estimate != null &&
+        !(
+          'walkSeconds' in existing.estimate &&
+          'transitSeconds' in existing.estimate
+        ))
+    ) {
+      return;
+    }
+    await ctx.db.patch(existing._id, {
+      estimate: {
+        type: 'selection',
+        mode: params.mode,
+        seconds: existing.estimate?.[`${params.mode}Seconds`] ?? null,
+      },
+    });
   },
 });

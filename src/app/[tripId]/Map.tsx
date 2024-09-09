@@ -18,7 +18,12 @@ export default function Map(
   const { trip, stops, addStop } = useTripState(props.tripSlug);
   return (
     <GoogleMap
-      style={{ width: '100%', height: '100%' }}
+      style={{
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        borderRadius: '6px',
+      }}
       defaultCenter={{ lat: 37.7749, lng: -122.4194 }}
       defaultZoom={12}
       gestureHandling={'greedy'}

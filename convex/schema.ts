@@ -12,4 +12,26 @@ export default defineSchema({
     lat: v.number(),
     lng: v.number(),
   }),
+  transitTimes: defineTable({
+    stopIdFirst: v.id('stops'),
+    stopIdSecond: v.id('stops'),
+    estimate: v.union(
+      v.object({
+        type: v.literal('list'),
+        walkSeconds: v.union(v.number(), v.null()),
+        transitSeconds: v.union(v.number(), v.null()),
+        bicycleSeconds: v.union(v.number(), v.null()),
+      }),
+      v.object({
+        type: v.literal('selection'),
+        mode: v.union(
+          v.literal('transit'),
+          v.literal('bicycle'),
+          v.literal('walk'),
+        ),
+        seconds: v.union(v.number(), v.null()),
+      }),
+      v.null(),
+    ),
+  }),
 });

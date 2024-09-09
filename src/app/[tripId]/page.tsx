@@ -8,7 +8,7 @@ export default function Home({ params }: { params: { tripId: string } }) {
       apiKey={process.env.NEXT_PUBLIC_GOOGLE_API_KEY ?? ''}
     >
       <div className="flex">
-        <div className="w-[80%] h-screen">
+        <div className="w-[80%] h-screen py-3 pl-3 rounded-md">
           <Map tripSlug={params.tripId} />
         </div>
         <div className="mx-3 mt-3">

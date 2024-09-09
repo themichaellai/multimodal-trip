@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { Id } from '../../../convex/_generated/dataModel';
+import { Id, Doc } from '../../../convex/_generated/dataModel';
 
 export function useTripState(tripSlug: string) {
   const trip = useQuery(api.trips.getBySlug, { slug: tripSlug });
@@ -18,6 +18,7 @@ export function useTripState(tripSlug: string) {
         api.trips.getBySlug,
         { slug: tripSlug },
         {
+          ...trip,
           trip: {
             ...trip.trip,
             stops: [...trip.trip.stops, newId],
@@ -47,6 +48,7 @@ export function useTripState(tripSlug: string) {
         api.trips.getBySlug,
         { slug: tripSlug },
         {
+          ...trip,
           trip: {
             ...trip.trip,
             stops: trip.trip.stops.filter((s) => s !== args.stopId),
@@ -56,10 +58,28 @@ export function useTripState(tripSlug: string) {
       );
     },
   );
+
+  const initTransitTimeEstimate = useMutation(
+    api.trips.initTransitTimeEstimate,
+  );
+
+  const estimatesByStops = new Map(
+    (trip?.estimates ?? []).map(
+      (est) =>
+        [`${est.stopIdFirst}--${est.stopIdSecond}`, est.estimate] as const,
+    ),
+  );
+
+  const selectTransitTimeEstimateMode = useMutation(
+    api.trips.selectTransitTimeEstimateMode,
+  );
   return {
     trip: trip?.trip ?? null,
     stops: trip?.stops ?? [],
     addStop,
     removeStop,
+    estimatesByStops,
+    initTransitTimeEstimate,
+    selectTransitTimeEstimateMode,
   };
 }

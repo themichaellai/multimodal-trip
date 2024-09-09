@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "prettier": "prettier . --write",
-    "ts:watch": "tsc -w --noEmit"
+    "ts:watch": "tsc -w --noEmit",
+    "convex-dev": "convex dev"
   },
   "dependencies": {
     "@googlemaps/google-maps-services-js": "^3.4.0",
