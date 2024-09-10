@@ -2,7 +2,7 @@
 
 import { v } from 'convex/values';
 import { Client as MapsClient } from '@googlemaps/google-maps-services-js';
-import { RoutesClient } from '@googlemaps/routing';
+import { RoutesClient, protos } from '@googlemaps/routing';
 
 import { internalAction } from './_generated/server';
 import { internal } from './_generated/api';
@@ -28,6 +28,38 @@ export const getStopName = internalAction({
     });
   },
 });
+
+const parseSeconds = <T extends unknown>(secs: T): number | null => {
+  if (typeof secs === 'string' && !isNaN(Number(secs))) {
+    return parseInt(secs, 10);
+  }
+  return null;
+};
+
+const normalizeTransitMode = (
+  mode:
+    | keyof typeof protos.google.maps.routing.v2.RouteTravelMode
+    | null
+    | undefined
+    | number,
+): 'transit' | 'walk' | 'bicycle' | 'unknown' => {
+  if (mode == null) {
+    return 'unknown';
+  }
+  if (typeof mode === 'number') {
+    return 'unknown';
+  }
+  switch (mode) {
+    case 'TRANSIT':
+      return 'transit';
+    case 'WALK':
+      return 'walk';
+    case 'BICYCLE':
+      return 'bicycle';
+    default:
+      return 'unknown';
+  }
+};
 
 export const refreshTransitTimeEstimates = internalAction({
   args: {
@@ -66,13 +98,10 @@ export const refreshTransitTimeEstimates = internalAction({
             otherArgs: {
               headers: {
                 'X-Goog-FieldMask': [
-                  'routes.duration',
+                  'routes.legs.duration',
                   'routes.legs.steps.staticDuration',
                   'routes.legs.steps.travelMode',
-                  'routes.legs.duration',
-
-                  //'routes.legs.*',
-                  //'routes.legs.steps.*',
+                  'routes.legs.steps.polyline.encodedPolyline',
                 ].join(','),
               },
             },
@@ -80,45 +109,54 @@ export const refreshTransitTimeEstimates = internalAction({
         ),
       ),
     );
-    const routeDurationSeconds = routeResps.map((resp): number | null => {
-      const legsSeconds =
-        resp[0].routes?.[0].legs?.map((leg) => {
-          const secs = leg.duration?.seconds;
-          if (typeof secs === 'string' && !isNaN(Number(secs))) {
-            return parseInt(secs, 10);
-          }
-          return null;
-        }) ?? [];
-      const legsSecondsNonNil = legsSeconds.filter((s) => s != null);
-      if (legsSeconds.length !== legsSecondsNonNil.length) {
-        console.warn('got some non-number durations on leg', legsSeconds);
-        return null;
-      }
-      const sumSecs = legsSecondsNonNil.reduce((acc, val) => acc + val, 0);
-      return sumSecs;
-    });
-    if (
-      routeDurationSeconds.some(
-        (duration) => duration != null && typeof duration !== 'number',
-      )
-    ) {
-      console.warn('got some non-number durations', routeDurationSeconds);
-    }
-    const [transitSeconds, walkSeconds, bicycleSeconds] =
-      routeDurationSeconds.map((d) =>
-        d == null || typeof d === 'number' ? d : null,
-      );
 
     if (params.throwAwayResults) {
       return;
     }
+
+    const routeSteps: Array<{
+      durationSeconds: number | null;
+      steps: Array<{
+        seconds: number;
+        stepMode: 'transit' | 'bicycle' | 'walk' | 'unknown';
+        polyline: string | null;
+      }>;
+    }> = routeResps.map((routeResp, index) => {
+      const route = routeResp[0].routes?.[0];
+      const steps =
+        route?.legs?.flatMap(
+          (leg) =>
+            leg.steps?.map((step) => ({
+              // TODO: this lazily sets nulls to 0, which is probably not what
+              // we want
+              seconds: parseSeconds(step.staticDuration?.seconds) ?? 0,
+              stepMode: normalizeTransitMode(step.travelMode),
+              polyline: step.polyline?.encodedPolyline ?? null,
+            })) ?? [],
+        ) ?? [];
+      const durationSeconds =
+        route?.legs
+          ?.map((leg) => parseSeconds(leg.duration?.seconds))
+          .reduce<number>((acc, val) => acc + (val ?? 0), 0) ?? null;
+      return { durationSeconds, steps };
+    });
+
     await ctx.scheduler.runAfter(0, internal.trips.setTransitTimeEstimate, {
       stopIdFirst: params.stopIdFirst,
       stopIdSecond: params.stopIdSecond,
       estimate: {
-        transitSeconds,
-        walkSeconds,
-        bicycleSeconds,
+        transit: {
+          seconds: routeSteps[0].durationSeconds,
+          steps: routeSteps[0].steps,
+        },
+        walk: {
+          seconds: routeSteps[1].durationSeconds,
+          steps: routeSteps[1].steps,
+        },
+        bicycle: {
+          seconds: routeSteps[2].durationSeconds,
+          steps: routeSteps[2].steps,
+        },
       },
     });
   },

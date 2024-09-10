@@ -187,14 +187,36 @@ export const initTransitTimeEstimate = mutation({
   },
 });
 
+const stepMode = () =>
+  v.union(
+    v.literal('transit'),
+    v.literal('bicycle'),
+    v.literal('walk'),
+    v.literal('unknown'),
+  );
+const stepSchema = v.object({
+  stepMode: stepMode(),
+  seconds: v.number(),
+  polyline: v.union(v.string(), v.null()),
+});
+
 export const setTransitTimeEstimate = internalMutation({
   args: {
     stopIdFirst: v.id('stops'),
     stopIdSecond: v.id('stops'),
     estimate: v.object({
-      walkSeconds: v.union(v.number(), v.null()),
-      transitSeconds: v.union(v.number(), v.null()),
-      bicycleSeconds: v.union(v.number(), v.null()),
+      walk: v.object({
+        seconds: v.union(v.number(), v.null()),
+        steps: v.array(stepSchema),
+      }),
+      transit: v.object({
+        seconds: v.union(v.number(), v.null()),
+        steps: v.array(stepSchema),
+      }),
+      bicycle: v.object({
+        seconds: v.union(v.number(), v.null()),
+        steps: v.array(stepSchema),
+      }),
     }),
   },
   handler: async (ctx, params) => {
@@ -207,26 +229,52 @@ export const setTransitTimeEstimate = internalMutation({
         ),
       )
       .first();
+
+    let transitTimeId;
     if (existing == null) {
-      await ctx.db.insert('transitTimes', {
+      transitTimeId = await ctx.db.insert('transitTimes', {
         stopIdFirst: params.stopIdFirst,
         stopIdSecond: params.stopIdSecond,
         estimate: {
-          walkSeconds: params.estimate.walkSeconds,
-          transitSeconds: params.estimate.transitSeconds,
-          bicycleSeconds: params.estimate.bicycleSeconds,
           type: 'list',
+          walkSeconds: params.estimate.walk.seconds,
+          transitSeconds: params.estimate.transit.seconds,
+          bicycleSeconds: params.estimate.bicycle.seconds,
         },
       });
     } else {
-      await ctx.db.patch(existing._id, {
+      transitTimeId = existing._id;
+      await ctx.db.patch(transitTimeId, {
         estimate: {
-          walkSeconds: params.estimate.walkSeconds,
-          transitSeconds: params.estimate.transitSeconds,
-          bicycleSeconds: params.estimate.bicycleSeconds,
           type: 'list',
+          walkSeconds: params.estimate.walk.seconds,
+          transitSeconds: params.estimate.transit.seconds,
+          bicycleSeconds: params.estimate.bicycle.seconds,
         },
       });
+    }
+
+    // Delete existing steps for this transitTime
+    const steps = await ctx.db
+      .query('tripSteps')
+      .filter((q) => q.eq(q.field('transitTimeId'), transitTimeId))
+      .collect();
+    await Promise.all(steps.map((step) => ctx.db.delete(step._id)));
+
+    // Insert new steps
+    for (const mode of ['walk', 'transit', 'bicycle'] as const) {
+      for (const [index, step] of Array.from(
+        params.estimate[mode].steps.entries(),
+      )) {
+        await ctx.db.insert('tripSteps', {
+          transitTimeId,
+          tripMode: mode,
+          stepIndex: index,
+          stepMode: step.stepMode,
+          seconds: step.seconds,
+          polyline: step.polyline,
+        });
+      }
     }
   },
 });

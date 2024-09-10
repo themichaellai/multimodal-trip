@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
+const transitMode = () =>
+  v.union(v.literal('transit'), v.literal('bicycle'), v.literal('walk'));
 export default defineSchema({
   trips: defineTable({
     slug: v.string(),
@@ -24,14 +26,25 @@ export default defineSchema({
       }),
       v.object({
         type: v.literal('selection'),
-        mode: v.union(
-          v.literal('transit'),
-          v.literal('bicycle'),
-          v.literal('walk'),
-        ),
+        mode: transitMode(),
         seconds: v.union(v.number(), v.null()),
       }),
       v.null(),
     ),
+  }),
+  tripSteps: defineTable({
+    transitTimeId: v.id('transitTimes'),
+    tripMode: transitMode(),
+    stepIndex: v.number(),
+    stepMode: v.union(
+      // Include unknown while unsure about how often the other types will be
+      // used
+      v.literal('unknown'),
+      v.literal('transit'),
+      v.literal('bicycle'),
+      v.literal('walk'),
+    ),
+    seconds: v.number(),
+    polyline: v.union(v.string(), v.null()),
   }),
 });
