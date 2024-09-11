@@ -1,5 +1,4 @@
 // https://github.com/visgl/react-google-maps/blob/ec7031e49/examples/geometry/src/components/polyline.tsx
-/* eslint-disable complexity */
 import {
   forwardRef,
   useContext,
@@ -60,10 +59,19 @@ function usePolyline(props: PolylineProps) {
   const geometryLibrary = useMapsLibrary('geometry');
 
   const polyline = useRef(new google.maps.Polyline()).current;
+  const polylineBorder = useRef(new google.maps.Polyline()).current;
   // update PolylineOptions (note the dependencies aren't properly checked
   // here, we just assume that setOptions is smart enough to not waste a
   // lot of time updating values that didn't change)
   useMemo(() => {
+    polylineBorder.setOptions({
+      ...polylineOptions,
+      strokeColor: 'rgb(68 64 60)',
+      strokeWeight:
+        polylineOptions.strokeWeight == null
+          ? null
+          : polylineOptions.strokeWeight + 2,
+    });
     polyline.setOptions(polylineOptions);
   }, [polyline, polylineOptions]);
 
@@ -73,6 +81,7 @@ function usePolyline(props: PolylineProps) {
   useMemo(() => {
     if (!encodedPath || !geometryLibrary) return;
     const path = geometryLibrary.encoding.decodePath(encodedPath);
+    polylineBorder.setPath(path);
     polyline.setPath(path);
   }, [polyline, encodedPath, geometryLibrary]);
 
@@ -85,9 +94,11 @@ function usePolyline(props: PolylineProps) {
       return;
     }
 
+    polylineBorder.setMap(map);
     polyline.setMap(map);
 
     return () => {
+      polylineBorder.setMap(null);
       polyline.setMap(null);
     };
   }, [map]);

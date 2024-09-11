@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { Id, Doc } from '../../../convex/_generated/dataModel';
+import { Id } from '../../../convex/_generated/dataModel';
 
 export function useTripState(tripSlug: string) {
   const trip = useQuery(api.trips.getBySlug, { slug: tripSlug });
