@@ -7,8 +7,8 @@ import {
 } from '@vis.gl/react-google-maps';
 
 import { Polyline } from '@/components/Polyline';
-import { useTripState } from './TripState';
-import { Doc } from '../../../convex/_generated/dataModel';
+import { useEstimateHover, useTripState } from './TripState';
+import { Doc, Id } from '../../../convex/_generated/dataModel';
 
 const GOOGLE_MAP_ID = '6506bf1b2b7e5dd';
 
@@ -47,6 +47,7 @@ export default function Map(
                     id: step._id,
                     polyline: step.polyline,
                     stepMode: step.stepMode,
+                    tripMode: step.tripMode,
                     transitTimeId: step.transitTimeId,
                   },
             )
@@ -97,6 +98,8 @@ export default function Map(
           key={p.id}
           polyline={p.polyline}
           stepMode={p.stepMode}
+          stepTripMode={p.tripMode}
+          estimateId={p.transitTimeId}
           estimate={estimatesById.get(p.transitTimeId) ?? null}
         />
       ))}
@@ -107,12 +110,17 @@ export default function Map(
 function EstimateStopPolyline({
   polyline,
   stepMode,
+  stepTripMode,
   estimate,
+  estimateId,
 }: {
   polyline: string;
   stepMode: Doc<'tripSteps'>['stepMode'];
+  stepTripMode: Doc<'tripSteps'>['tripMode'];
   estimate: Doc<'transitTimes'>['estimate'] | null;
+  estimateId: Id<'transitTimes'>;
 }) {
+  const { setEstimateId, estimate: estimateHovered } = useEstimateHover();
   if (estimate == null) {
     return null;
   }
@@ -123,10 +131,21 @@ function EstimateStopPolyline({
   return (
     <Polyline
       strokeColor={
-        isSelection
+        isSelection ||
+        (estimateHovered?.id === estimateId &&
+          estimateHovered?.mode === stepTripMode)
           ? transitTypeToPolylineStrokeColor[stepMode]
           : transitTypeToPolylineStrokeColorLight[stepMode]
       }
+      onMouseOver={() => {
+        setEstimateId({
+          id: estimateId,
+          mode: stepTripMode,
+        });
+      }}
+      onMouseOut={() => {
+        setEstimateId((curr) => (curr?.id === estimateId ? null : curr));
+      }}
       strokeWeight={isSelection ? 5 : 3}
       encodedPath={polyline}
     />

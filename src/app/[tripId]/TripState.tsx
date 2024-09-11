@@ -1,5 +1,15 @@
 'use client';
 
+import {
+  createContext,
+  PropsWithChildren,
+  useMemo,
+  useState,
+  use,
+  Dispatch,
+  SetStateAction,
+  ContextType,
+} from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Id } from '../../../convex/_generated/dataModel';
@@ -69,8 +79,7 @@ export function useTripState(tripSlug: string) {
 
   const estimatesByStops = new Map(
     (trip?.estimates ?? []).map(
-      (est) =>
-        [`${est.stopIdFirst}--${est.stopIdSecond}`, est.estimate] as const,
+      (est) => [`${est.stopIdFirst}--${est.stopIdSecond}`, est] as const,
     ),
   );
   const estimatesById = new Map(
@@ -92,3 +101,37 @@ export function useTripState(tripSlug: string) {
     estimateSteps,
   };
 }
+
+interface EstimateHoverState {
+  id: Id<'transitTimes'>;
+  mode: 'transit' | 'walk' | 'bicycle';
+}
+const estimateHoverContext = createContext<{
+  estimate: EstimateHoverState | null;
+  setEstimateId: Dispatch<SetStateAction<EstimateHoverState | null>>;
+} | null>(null);
+export function EstimateHoverContext(props: PropsWithChildren) {
+  const [selectedEstimate, setSelectedEstimate] =
+    useState<EstimateHoverState | null>(null);
+  const val = useMemo(
+    (): ContextType<typeof estimateHoverContext> => ({
+      estimate: selectedEstimate,
+      setEstimateId: setSelectedEstimate,
+    }),
+    [selectedEstimate, setSelectedEstimate],
+  );
+  return (
+    <estimateHoverContext.Provider value={val}>
+      {props.children}
+    </estimateHoverContext.Provider>
+  );
+}
+export const useEstimateHover = () => {
+  const ctx = use(estimateHoverContext);
+  if (ctx == null) {
+    throw new Error(
+      'useEstimateHover must be used inside EstimateHoverContext',
+    );
+  }
+  return ctx;
+};

@@ -10,8 +10,9 @@ import {
 
 import { TextSmall, TextLarge } from '@/components/typography';
 import { Button } from '@/components/ui/button';
-import { useTripState } from './TripState';
+import { useEstimateHover, useTripState } from './TripState';
 import { Id } from '../../../convex/_generated/dataModel';
+import { cn } from '@/lib/utils';
 
 export default function Sidebar({ tripSlug }: { tripSlug: string }) {
   const { stops, removeStop } = useTripState(tripSlug);
@@ -26,21 +27,15 @@ export default function Sidebar({ tripSlug }: { tripSlug: string }) {
               <TextSmall className="font-semibold">
                 {stop.name ?? 'Place'}
               </TextSmall>
-              <div>
-                {index < stops.length - 1 ? null : (
-                  <Button
-                    onClick={() => {
-                      removeStop({ stopId: stop._id });
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="p-1 h-auto"
-                  >
-                    <Cross2Icon className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
+              {index < stops.length - 1 ? null : (
+                <RemoveStopButton
+                  removeStop={() => {
+                    removeStop({ stopId: stop._id });
+                  }}
+                />
+              )}
             </div>
+
             {index >= stops.length - 1 ? null : (
               <div
                 key={stop._id + 'foo'}
@@ -89,11 +84,10 @@ function TransitTimeEstimate({
     initTransitTimeEstimate,
     selectTransitTimeEstimateMode,
   } = useTripState(tripSlug);
+  const { estimate: estimateHovered } = useEstimateHover();
   const estimateKey = `${stopIdFirst}--${stopIdSecond}` as const;
-  const estimate = estimatesByStops.has(estimateKey)
-    ? (estimatesByStops.get(estimateKey) ?? 'loading')
-    : 'uninitialized';
-  if (estimate == 'uninitialized') {
+  const estimateDoc = estimatesByStops.get(estimateKey) ?? 'uninitialized';
+  if (estimateDoc == 'uninitialized') {
     return (
       <Button
         variant="outline"
@@ -110,50 +104,29 @@ function TransitTimeEstimate({
     );
   }
 
-  if (
-    estimate === 'loading' ||
-    ('type' in estimate && estimate.type === 'list')
-  ) {
-    const orIsLoading = (k: 'walk' | 'transit' | 'bicycle') =>
-      estimate !== 'loading' ? (
-        secondsToString(estimate[`${k}Seconds`])
-      ) : (
-        <ReloadIcon className="ml-2 h-3 w-3 animate-spin" />
-      );
+  const estimate = estimateDoc.estimate;
+  if (estimate == null || estimate.type === 'list') {
     return (
-      <div className="flex gap-2">
-        {(['walk', 'transit', 'bicycle'] as const).map((mode) => (
-          <Button
-            key={mode}
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              selectTransitTimeEstimateMode({
-                stopIdFirst: stopIdFirst,
-                stopIdSecond: stopIdSecond,
-                mode: mode,
-              })
-            }
-            disabled={estimate === 'loading'}
-          >
-            {transitModeToEmoji[mode]} {orIsLoading(mode)}
-          </Button>
-        ))}
-        <Button
-          key="refresh"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            initTransitTimeEstimate({
-              stopIdFirst: stopIdFirst,
-              stopIdSecond: stopIdSecond,
-            })
-          }
-          disabled={estimate === 'loading'}
-        >
-          <ReloadIcon className="h-3 w-3" />
-        </Button>
-      </div>
+      <EstimateList
+        className="flex gap-2"
+        initTransitTimeEstimate={() =>
+          initTransitTimeEstimate({
+            stopIdFirst: stopIdFirst,
+            stopIdSecond: stopIdSecond,
+          })
+        }
+        selectTransitTimeEstimateMode={(s: 'transit' | 'walk' | 'bicycle') =>
+          selectTransitTimeEstimateMode({
+            stopIdFirst: stopIdFirst,
+            stopIdSecond: stopIdSecond,
+            mode: s,
+          })
+        }
+        estimate={estimate ?? 'loading'}
+        hoveredMode={
+          estimateHovered?.id === estimateDoc._id ? estimateHovered.mode : null
+        }
+      />
     );
   }
 
@@ -161,5 +134,75 @@ function TransitTimeEstimate({
     <TextSmall>
       {transitModeToEmoji[estimate.mode]} {secondsToString(estimate.seconds)}
     </TextSmall>
+  );
+}
+
+function EstimateList({
+  estimate,
+  ...props
+}: {
+  className?: string;
+
+  initTransitTimeEstimate: () => void;
+  selectTransitTimeEstimateMode: (s: 'transit' | 'walk' | 'bicycle') => void;
+  estimate:
+    | {
+        walkSeconds: number | null;
+        bicycleSeconds: number | null;
+        transitSeconds: number | null;
+      }
+    | 'loading';
+  hoveredMode: 'transit' | 'walk' | 'bicycle' | null;
+}) {
+  const orIsLoading = (mode: 'walk' | 'transit' | 'bicycle') => {
+    if (estimate === 'loading') {
+      return <ReloadIcon className="ml-2 h-3 w-3 animate-spin" />;
+    }
+    const s = secondsToString(estimate[`${mode}Seconds`]);
+    return <TextSmall>{s}</TextSmall>;
+  };
+  return (
+    <div className={cn('flex w-full', props.className)}>
+      {(['walk', 'transit', 'bicycle'] as const).map((mode) => (
+        <Button
+          key={mode}
+          variant="outline"
+          size="sm"
+          onClick={() => props.selectTransitTimeEstimateMode(mode)}
+          disabled={estimate === 'loading'}
+          className={cn(
+            'flex-1 w-0',
+            props.hoveredMode === mode && 'bg-accent',
+          )}
+        >
+          {transitModeToEmoji[mode]}{' '}
+          <span className="ml-1">{orIsLoading(mode)}</span>
+        </Button>
+      ))}
+      <Button
+        key="refresh"
+        variant="outline"
+        size="sm"
+        onClick={() => props.initTransitTimeEstimate()}
+        disabled={estimate === 'loading'}
+      >
+        <ReloadIcon className="h-3 w-3" />
+      </Button>
+    </div>
+  );
+}
+
+function RemoveStopButton({ removeStop }: { removeStop: () => void }) {
+  return (
+    <Button
+      onClick={() => {
+        removeStop();
+      }}
+      variant="outline"
+      size="sm"
+      className="p-1 h-auto"
+    >
+      <Cross2Icon className="h-3 w-3" />
+    </Button>
   );
 }

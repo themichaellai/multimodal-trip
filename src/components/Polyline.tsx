@@ -67,13 +67,17 @@ function usePolyline(props: PolylineProps) {
     polylineBorder.setOptions({
       ...polylineOptions,
       strokeColor: 'rgb(68 64 60)',
+      zIndex: 0,
       strokeWeight:
         polylineOptions.strokeWeight == null
           ? null
           : polylineOptions.strokeWeight + 2,
     });
-    polyline.setOptions(polylineOptions);
-  }, [polyline, polylineOptions]);
+    polyline.setOptions({
+      ...polylineOptions,
+      zIndex: 1,
+    });
+  }, [polyline, polylineBorder, polylineOptions]);
 
   const map = useContext(GoogleMapsContext)?.map;
 
@@ -83,7 +87,7 @@ function usePolyline(props: PolylineProps) {
     const path = geometryLibrary.encoding.decodePath(encodedPath);
     polylineBorder.setPath(path);
     polyline.setPath(path);
-  }, [polyline, encodedPath, geometryLibrary]);
+  }, [polyline, polylineBorder, encodedPath, geometryLibrary]);
 
   // create polyline instance and add to the map once the map is available
   useEffect(() => {
@@ -101,6 +105,7 @@ function usePolyline(props: PolylineProps) {
       polylineBorder.setMap(null);
       polyline.setMap(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
 
   // attach and re-attach event-handlers when any of the properties change
@@ -137,6 +142,7 @@ function usePolyline(props: PolylineProps) {
 export const Polyline = forwardRef((props: PolylineProps, ref: PolylineRef) => {
   const polyline = usePolyline(props);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useImperativeHandle(ref, () => polyline, []);
 
   return null;
