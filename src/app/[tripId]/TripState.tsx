@@ -6,6 +6,10 @@ import { Id, Doc } from '../../../convex/_generated/dataModel';
 
 export function useTripState(tripSlug: string) {
   const trip = useQuery(api.trips.getBySlug, { slug: tripSlug });
+  const estimateSteps = useQuery(api.trips.getTransitTimeEstimateSteps, {
+    tripSlug,
+  });
+
   const addStop = useMutation(api.trips.addStop).withOptimisticUpdate(
     (localStore, args) => {
       const trip = localStore.getQuery(api.trips.getBySlug, { slug: tripSlug });
@@ -69,6 +73,9 @@ export function useTripState(tripSlug: string) {
         [`${est.stopIdFirst}--${est.stopIdSecond}`, est.estimate] as const,
     ),
   );
+  const estimatesById = new Map(
+    (trip?.estimates ?? []).map((est) => [est._id, est.estimate] as const),
+  );
 
   const selectTransitTimeEstimateMode = useMutation(
     api.trips.selectTransitTimeEstimateMode,
@@ -79,7 +86,9 @@ export function useTripState(tripSlug: string) {
     addStop,
     removeStop,
     estimatesByStops,
+    estimatesById,
     initTransitTimeEstimate,
     selectTransitTimeEstimateMode,
+    estimateSteps,
   };
 }

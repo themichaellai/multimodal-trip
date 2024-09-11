@@ -7,7 +7,7 @@ import {
   query,
 } from './_generated/server';
 import { v } from 'convex/values';
-import { Doc } from './_generated/dataModel';
+import { Doc, Id } from './_generated/dataModel';
 import { internal } from './_generated/api';
 
 // "nolookalikes" from nanoid-dictionary
@@ -316,5 +316,61 @@ export const selectTransitTimeEstimateMode = mutation({
         seconds: existing.estimate?.[`${params.mode}Seconds`] ?? null,
       },
     });
+  },
+});
+
+export const getTransitTimeEstimateSteps = query({
+  args: {
+    tripSlug: v.string(),
+  },
+  handler: async (
+    ctx,
+    params,
+  ): Promise<
+    Array<{
+      stopIdFirst: Id<'stops'>;
+      stopIdSecond: Id<'stops'>;
+      tripSteps: Array<Doc<'tripSteps'>>;
+    }>
+  > => {
+    const trip = await ctx.db
+      .query('trips')
+      .filter((q) => q.eq(q.field('slug'), params.tripSlug))
+      .first();
+    if (!trip) return [];
+
+    const tripStopIdPairs = trip.stops
+      .slice(0, -1)
+      .map((stopId, index) => [stopId, trip.stops[index + 1]] as const);
+    const transitTimes = (
+      await Promise.all(
+        tripStopIdPairs.map(async ([stopIdFirst, stopIdSecond]) => {
+          return await ctx.db
+            .query('transitTimes')
+            .filter((q) =>
+              q.and(
+                q.eq(q.field('stopIdFirst'), stopIdFirst),
+                q.eq(q.field('stopIdSecond'), stopIdSecond),
+              ),
+            )
+            .first();
+        }),
+      )
+    ).filter((transitTime) => transitTime != null);
+
+    const steps = await Promise.all(
+      transitTimes.map(async (transitTime) => {
+        const tripSteps = await ctx.db
+          .query('tripSteps')
+          .filter((q) => q.eq(q.field('transitTimeId'), transitTime._id))
+          .collect();
+        return {
+          stopIdFirst: transitTime.stopIdFirst,
+          stopIdSecond: transitTime.stopIdSecond,
+          tripSteps,
+        };
+      }),
+    );
+    return steps;
   },
 });

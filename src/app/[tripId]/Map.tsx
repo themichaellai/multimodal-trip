@@ -6,16 +6,56 @@ import {
   MapProps,
 } from '@vis.gl/react-google-maps';
 
+import { Polyline } from '@/components/Polyline';
 import { useTripState } from './TripState';
+import { Doc } from '../../../convex/_generated/dataModel';
 
 const GOOGLE_MAP_ID = '6506bf1b2b7e5dd';
+
+const transitTypeToPolylineStrokeColor = {
+  // These are all generally the 500 colors from the tailwind palette
+  walk: 'rgb(59 130 246)', // blue
+  transit: 'rgb(239 68 68)',
+  bicycle: 'rgb(34 197 94)',
+  unknown: 'black',
+} as const;
+
+const transitTypeToPolylineStrokeColorLight = {
+  walk: 'rgb(191 219 254)', // blue-200
+  transit: 'rgb(254 202 202)', // red-200
+  bicycle: 'rgb(187 247 208)', // green-200
+  unknown: 'black',
+} as const;
 
 export default function Map(
   props: MapProps & {
     tripSlug: string;
   },
 ) {
-  const { trip, stops, addStop } = useTripState(props.tripSlug);
+  const { trip, stops, addStop, estimatesById, estimateSteps } = useTripState(
+    props.tripSlug,
+  );
+  const polylines =
+    estimateSteps == null
+      ? []
+      : estimateSteps.flatMap((s) => {
+          return s.tripSteps
+            .map((step) =>
+              step.polyline == null
+                ? null
+                : {
+                    id: step._id,
+                    polyline: step.polyline,
+                    stepMode: step.stepMode,
+                    transitTimeId: step.transitTimeId,
+                  },
+            )
+            .filter((s) => s != null)
+            .filter(
+              (s) => (estimatesById.get(s.transitTimeId) ?? null) != null,
+            );
+        });
+
   return (
     <GoogleMap
       style={{
@@ -52,6 +92,43 @@ export default function Map(
       {stops.map((s, i) => (
         <AdvancedMarker key={i} position={{ lat: s.lat, lng: s.lng }} />
       ))}
+      {polylines.map((p) => (
+        <EstimateStopPolyline
+          key={p.id}
+          polyline={p.polyline}
+          stepMode={p.stepMode}
+          estimate={estimatesById.get(p.transitTimeId) ?? null}
+        />
+      ))}
     </GoogleMap>
+  );
+}
+
+function EstimateStopPolyline({
+  polyline,
+  stepMode,
+  estimate,
+}: {
+  polyline: string;
+  stepMode: Doc<'tripSteps'>['stepMode'];
+  estimate: Doc<'transitTimes'>['estimate'] | null;
+}) {
+  if (estimate == null) {
+    return null;
+  }
+  if (estimate.type === 'selection' && estimate.mode !== stepMode) {
+    return null;
+  }
+  const isSelection = estimate.type === 'selection';
+  return (
+    <Polyline
+      strokeColor={
+        isSelection
+          ? transitTypeToPolylineStrokeColor[stepMode]
+          : transitTypeToPolylineStrokeColorLight[stepMode]
+      }
+      strokeWeight={isSelection ? 5 : 3}
+      encodedPath={polyline}
+    />
   );
 }
