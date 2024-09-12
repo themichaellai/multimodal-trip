@@ -9,7 +9,6 @@ import {
 import { Polyline } from '@/components/Polyline';
 import { useEstimateHover, useTripState } from './TripState';
 import { Doc, Id } from '../../../convex/_generated/dataModel';
-import { useEffect } from 'react';
 
 const GOOGLE_MAP_ID = '6506bf1b2b7e5dd';
 

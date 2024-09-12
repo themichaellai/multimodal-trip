@@ -73,6 +73,34 @@ export function useTripState(tripSlug: string) {
     },
   );
 
+  const editStopName = useMutation(api.trips.setStopName).withOptimisticUpdate(
+    (localStore, args) => {
+      const tripState = localStore.getQuery(api.trips.getBySlug, {
+        slug: tripSlug,
+      });
+      if (tripState == null) {
+        return;
+      }
+      const stop = tripState.stops.find((s) => s._id === args.stopId);
+      if (stop == null) {
+        return;
+      }
+      localStore.setQuery(
+        api.trips.getBySlug,
+        { slug: tripSlug },
+        {
+          ...tripState,
+          stops: tripState.stops.map((s) => {
+            if (s._id === args.stopId) {
+              return { ...s, name: args.name };
+            }
+            return s;
+          }),
+        },
+      );
+    },
+  );
+
   const initTransitTimeEstimate = useMutation(
     api.trips.initTransitTimeEstimate,
   );
@@ -94,6 +122,7 @@ export function useTripState(tripSlug: string) {
     stops: trip?.stops ?? [],
     addStop,
     removeStop,
+    editStopName,
     estimatesByStops,
     estimatesById,
     initTransitTimeEstimate,

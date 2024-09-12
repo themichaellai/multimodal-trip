@@ -75,7 +75,7 @@ export const createTrip = mutation({
   },
 });
 
-export const setStopName = internalMutation({
+export const setStopName = mutation({
   args: { stopId: v.id('stops'), name: v.string() },
   handler: async (ctx, params) => {
     await ctx.db.patch(params.stopId, { name: params.name });

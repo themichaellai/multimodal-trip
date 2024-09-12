@@ -1,38 +1,68 @@
 'use client';
 
-import { Fragment } from 'react';
 import {
+  ComponentProps,
+  Fragment,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
+import {
+  CheckIcon,
   Cross2Icon,
   DotIcon,
   DotsVerticalIcon,
   ReloadIcon,
+  Pencil1Icon,
 } from '@radix-ui/react-icons';
 
 import { TextSmall, TextLarge } from '@/components/typography';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useEstimateHover, useTripState } from './TripState';
 import { Id } from '../../../convex/_generated/dataModel';
 import { cn } from '@/lib/utils';
 
 export default function Sidebar({ tripSlug }: { tripSlug: string }) {
-  const { stops, removeStop } = useTripState(tripSlug);
+  const { stops, removeStop, editStopName } = useTripState(tripSlug);
+  const [editedStop, setEditedStop] = useState<Id<'stops'> | null>(null);
   return (
     <>
       <TextLarge className="mb-1">Stops</TextLarge>
       <div>
         {stops.map((stop, index) => (
-          <Fragment key={index}>
-            <div key={index} className="flex items-center gap-2 py-3 h-9">
+          <Fragment key={stop._id}>
+            <div className="flex items-center gap-2 py-3 h-9">
               <DotIcon className="h-5 w-5 text-muted-foreground" />
-              <TextSmall className="font-semibold">
-                {stop.name ?? 'Place'}
-              </TextSmall>
-              {index < stops.length - 1 ? null : (
-                <RemoveStopButton
-                  removeStop={() => {
-                    removeStop({ stopId: stop._id });
+              {editedStop === stop._id ? (
+                <StopEdit
+                  placeholder={stop.name}
+                  cancelEdit={() => {
+                    setEditedStop(null);
+                  }}
+                  saveEdit={(newName) => {
+                    editStopName({ stopId: stop._id, name: newName });
+                    setEditedStop(null);
                   }}
                 />
+              ) : (
+                <>
+                  <TextSmall className="font-semibold">
+                    {stop.name ?? 'Place'}
+                  </TextSmall>
+                  <EditStopNameButton
+                    toggleEdit={() => {
+                      setEditedStop((s) => (s === stop._id ? null : stop._id));
+                    }}
+                  />
+                  {index < stops.length - 1 ? null : (
+                    <RemoveStopButton
+                      removeStop={() => {
+                        removeStop({ stopId: stop._id });
+                      }}
+                    />
+                  )}
+                </>
               )}
             </div>
 
@@ -210,17 +240,92 @@ function EstimateList({
   );
 }
 
+function EditStopNameButton({ toggleEdit }: { toggleEdit: () => void }) {
+  return (
+    <ActionButton
+      onClick={() => {
+        toggleEdit();
+      }}
+    >
+      <Pencil1Icon className="h-3 w-3" />
+    </ActionButton>
+  );
+}
 function RemoveStopButton({ removeStop }: { removeStop: () => void }) {
   return (
-    <Button
+    <ActionButton
       onClick={() => {
         removeStop();
       }}
-      variant="outline"
-      size="sm"
-      className="p-1 h-auto"
     >
       <Cross2Icon className="h-3 w-3" />
-    </Button>
+    </ActionButton>
+  );
+}
+
+function ActionButton(props: ComponentProps<typeof Button>) {
+  return (
+    <Button variant="outline" size="sm" className="p-1 h-auto" {...props} />
+  );
+}
+
+function StopEdit({
+  placeholder,
+  cancelEdit,
+  saveEdit,
+}: {
+  placeholder: string | null;
+  cancelEdit: () => void;
+  saveEdit: (newName: string) => void;
+}) {
+  const [val, setVal] = useState(placeholder ?? '');
+  const submit = () => {
+    saveEdit(val);
+  };
+  const onEscape = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        cancelEdit();
+      }
+    },
+    [cancelEdit],
+  );
+  useEffect(() => {
+    document.addEventListener('keydown', onEscape, true);
+    return () => {
+      document.removeEventListener('keydown', onEscape, true);
+    };
+  }, [onEscape]);
+  return (
+    <>
+      <Input
+        value={val}
+        placeholder={placeholder ?? undefined}
+        onChange={(e) => {
+          setVal(e.target.value);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            submit();
+          }
+          if (e.key === 'Escape') {
+            console.log('esc pressed', e.isDefaultPrevented);
+            cancelEdit();
+          }
+        }}
+        autoFocus
+        onSubmit={submit}
+      />
+      <Button variant="outline" className="px-2 py-1" onClick={submit}>
+        <CheckIcon />
+      </Button>
+      <Button
+        variant="outline"
+        className="px-2 py-1"
+        onClick={() => cancelEdit()}
+      >
+        <Cross2Icon />
+      </Button>
+    </>
   );
 }

@@ -5,7 +5,7 @@ import { Client as MapsClient } from '@googlemaps/google-maps-services-js';
 import { RoutesClient, protos } from '@googlemaps/routing';
 
 import { internalAction } from './_generated/server';
-import { internal } from './_generated/api';
+import { api, internal } from './_generated/api';
 
 const googleMapsClient = new MapsClient({});
 const googleRoutingClient = new RoutesClient({
@@ -22,7 +22,7 @@ export const getStopName = internalAction({
         fields: ['name'],
       },
     });
-    await ctx.runMutation(internal.trips.setStopName, {
+    await ctx.runMutation(api.trips.setStopName, {
       stopId: params.stopId,
       name: resp.data.result.name ?? 'Place',
     });
