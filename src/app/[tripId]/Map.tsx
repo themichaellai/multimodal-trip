@@ -9,11 +9,12 @@ import {
 import { Polyline } from '@/components/Polyline';
 import { useEstimateHover, useTripStatePreloaded } from './TripState';
 import { Doc, Id } from '../../../convex/_generated/dataModel';
-import { use } from 'react';
+import { use, useMemo } from 'react';
 import {
   type PreloadedTripSteps,
   type PreloadedTrip,
 } from './trip-state-server';
+import { decode } from '@googlemaps/polyline-codec';
 
 const GOOGLE_MAP_ID = '6506bf1b2b7e5dd';
 
@@ -32,6 +33,13 @@ const transitTypeToPolylineStrokeColorLight = {
   unknown: 'black',
 } as const;
 
+const sanFranciscoBounds = {
+  north: 37.81,
+  south: 37.7,
+  east: -122.35,
+  west: -122.52,
+};
+
 export default function Map(
   props: MapProps & {
     tripSlug: string;
@@ -45,27 +53,70 @@ export default function Map(
       use(props.trip),
       use(props.estimateSteps),
     );
-  const polylines =
-    estimateSteps == null
-      ? []
-      : estimateSteps.flatMap((s) => {
-          return s.tripSteps
-            .map((step) =>
-              step.polyline == null
-                ? null
-                : {
-                    id: step._id,
-                    polyline: step.polyline,
-                    stepMode: step.stepMode,
-                    tripMode: step.tripMode,
-                    transitTimeId: step.transitTimeId,
-                  },
-            )
-            .filter((s) => s != null)
-            .filter(
-              (s) => (estimatesById.get(s.transitTimeId) ?? null) != null,
-            );
-        });
+  const polylines = useMemo(
+    () =>
+      estimateSteps == null
+        ? []
+        : estimateSteps.flatMap((s) => {
+            return s.tripSteps
+              .map((step) =>
+                step.polyline == null
+                  ? null
+                  : {
+                      id: step._id,
+                      polyline: step.polyline,
+                      stepMode: step.stepMode,
+                      tripMode: step.tripMode,
+                      transitTimeId: step.transitTimeId,
+                    },
+              )
+              .filter((s) => s != null)
+              .filter(
+                (s) => (estimatesById.get(s.transitTimeId) ?? null) != null,
+              );
+          }),
+    [estimateSteps, estimatesById],
+  );
+
+  const bounds = useMemo(() => {
+    if (stops.length === 0 && polylines.length === 0) {
+      return sanFranciscoBounds;
+    }
+
+    const initialBounds = {
+      north: -Infinity,
+      south: Infinity,
+      east: -Infinity,
+      west: Infinity,
+    };
+
+    // Calculate bounds for stops
+    const stopBounds = stops.reduce(
+      (acc, stop) => ({
+        north: Math.max(acc.north, stop.lat),
+        south: Math.min(acc.south, stop.lat),
+        east: Math.max(acc.east, stop.lng),
+        west: Math.min(acc.west, stop.lng),
+      }),
+      initialBounds,
+    );
+
+    // Calculate bounds for polylines
+    const finalBounds = polylines.reduce((acc, p) => {
+      const decodedPath = decode(p.polyline);
+      return decodedPath.reduce(
+        (pathAcc, [lat, lng]) => ({
+          north: Math.max(pathAcc.north, lat),
+          south: Math.min(pathAcc.south, lat),
+          east: Math.max(pathAcc.east, lng),
+          west: Math.min(pathAcc.west, lng),
+        }),
+        acc,
+      );
+    }, stopBounds);
+
+    return finalBounds;
+  }, [stops, polylines]);
 
   return (
     <GoogleMap
@@ -75,8 +126,13 @@ export default function Map(
         overflow: 'hidden',
         borderRadius: '6px',
       }}
-      defaultCenter={{ lat: 37.7749, lng: -122.4194 }}
-      defaultZoom={12}
+      defaultBounds={{
+        north: bounds.north,
+        south: bounds.south,
+        east: bounds.east,
+        west: bounds.west,
+        padding: 50, // Add some padding around the bounds
+      }}
       gestureHandling={'greedy'}
       disableDefaultUI={true}
       mapId={GOOGLE_MAP_ID}
@@ -85,7 +141,6 @@ export default function Map(
           return;
         }
         if (e.detail.latLng == null) {
-          console.log('type', e.type);
           return;
         }
         addStop({
