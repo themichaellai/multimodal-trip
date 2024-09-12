@@ -7,8 +7,13 @@ import {
 } from '@vis.gl/react-google-maps';
 
 import { Polyline } from '@/components/Polyline';
-import { useEstimateHover, useTripState } from './TripState';
+import { useEstimateHover, useTripStatePreloaded } from './TripState';
 import { Doc, Id } from '../../../convex/_generated/dataModel';
+import { use } from 'react';
+import {
+  type PreloadedTripSteps,
+  type PreloadedTrip,
+} from './trip-state-server';
 
 const GOOGLE_MAP_ID = '6506bf1b2b7e5dd';
 
@@ -30,11 +35,16 @@ const transitTypeToPolylineStrokeColorLight = {
 export default function Map(
   props: MapProps & {
     tripSlug: string;
+    trip: Promise<PreloadedTrip>;
+    estimateSteps: Promise<PreloadedTripSteps>;
   },
 ) {
-  const { trip, stops, addStop, estimatesById, estimateSteps } = useTripState(
-    props.tripSlug,
-  );
+  const { trip, stops, addStop, estimatesById, estimateSteps } =
+    useTripStatePreloaded(
+      props.tripSlug,
+      use(props.trip),
+      use(props.estimateSteps),
+    );
   const polylines =
     estimateSteps == null
       ? []

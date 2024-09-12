@@ -10,16 +10,36 @@ import {
   SetStateAction,
   ContextType,
 } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, usePreloadedQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Id } from '../../../convex/_generated/dataModel';
+import { PreloadedTrip, PreloadedTripSteps } from './trip-state-server';
+
+export function useTripStatePreloaded(
+  tripSlug: string,
+  preloadedTrip: PreloadedTrip,
+  preloadedSteps: PreloadedTripSteps,
+) {
+  const trip = usePreloadedQuery(preloadedTrip);
+  const estimateSteps = usePreloadedQuery(preloadedSteps);
+  return useInner(tripSlug, trip, estimateSteps);
+}
 
 export function useTripState(tripSlug: string) {
   const trip = useQuery(api.trips.getBySlug, { slug: tripSlug });
   const estimateSteps = useQuery(api.trips.getTransitTimeEstimateSteps, {
     tripSlug,
   });
+  return useInner(tripSlug, trip, estimateSteps);
+}
 
+function useInner(
+  tripSlug: string,
+  trip: typeof api.trips.getBySlug._returnType | undefined,
+  estimateSteps:
+    | typeof api.trips.getTransitTimeEstimateSteps._returnType
+    | undefined,
+) {
   const addStop = useMutation(api.trips.addStop).withOptimisticUpdate(
     (localStore, args) => {
       const trip = localStore.getQuery(api.trips.getBySlug, { slug: tripSlug });

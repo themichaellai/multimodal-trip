@@ -3,6 +3,7 @@
 import {
   ComponentProps,
   Fragment,
+  use,
   useCallback,
   useEffect,
   useState,
@@ -19,12 +20,29 @@ import {
 import { TextSmall, TextLarge } from '@/components/typography';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useEstimateHover, useTripState } from './TripState';
-import { Id } from '../../../convex/_generated/dataModel';
+import {
+  useEstimateHover,
+  useTripState,
+  useTripStatePreloaded,
+} from './TripState';
+import { Doc, Id } from '../../../convex/_generated/dataModel';
 import { cn } from '@/lib/utils';
+import {
+  type PreloadedTripSteps,
+  type PreloadedTrip,
+} from './trip-state-server';
 
-export default function Sidebar({ tripSlug }: { tripSlug: string }) {
-  const { stops, removeStop, editStopName } = useTripState(tripSlug);
+export default function Sidebar({
+  tripSlug,
+  trip,
+  estimateSteps,
+}: {
+  tripSlug: string;
+  trip: Promise<PreloadedTrip>;
+  estimateSteps: Promise<PreloadedTripSteps>;
+}) {
+  const { stops, removeStop, editStopName, estimatesByStops } =
+    useTripStatePreloaded(tripSlug, use(trip), use(estimateSteps));
   const [editedStop, setEditedStop] = useState<Id<'stops'> | null>(null);
   return (
     <>
@@ -76,6 +94,11 @@ export default function Sidebar({ tripSlug }: { tripSlug: string }) {
                   stopIdFirst={stop._id}
                   stopIdSecond={stops[index + 1]._id}
                   tripSlug={tripSlug}
+                  estimateDoc={
+                    estimatesByStops.get(
+                      `${stop._id}--${stops[index + 1]._id}`,
+                    ) ?? null
+                  }
                 />
               </div>
             )}
@@ -104,21 +127,18 @@ function TransitTimeEstimate({
   stopIdFirst,
   stopIdSecond,
   tripSlug,
+  estimateDoc,
 }: {
+  estimateDoc: Doc<'transitTimes'> | null;
   stopIdFirst: Id<'stops'>;
   stopIdSecond: Id<'stops'>;
   tripSlug: string;
 }) {
-  const {
-    estimatesByStops,
-    initTransitTimeEstimate,
-    selectTransitTimeEstimateMode,
-  } = useTripState(tripSlug);
+  const { initTransitTimeEstimate, selectTransitTimeEstimateMode } =
+    useTripState(tripSlug);
   const { estimate: estimateHovered, setEstimate: setEstimateHovered } =
     useEstimateHover();
-  const estimateKey = `${stopIdFirst}--${stopIdSecond}` as const;
-  const estimateDoc = estimatesByStops.get(estimateKey) ?? 'uninitialized';
-  if (estimateDoc == 'uninitialized') {
+  if (estimateDoc == null) {
     return (
       <Button
         variant="outline"
@@ -299,6 +319,7 @@ function StopEdit({
   return (
     <>
       <Input
+        className="w-auto"
         value={val}
         placeholder={placeholder ?? undefined}
         onChange={(e) => {
