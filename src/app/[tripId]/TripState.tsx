@@ -108,7 +108,7 @@ interface EstimateHoverState {
 }
 const estimateHoverContext = createContext<{
   estimate: EstimateHoverState | null;
-  setEstimateId: Dispatch<SetStateAction<EstimateHoverState | null>>;
+  setEstimate: Dispatch<SetStateAction<EstimateHoverState | null>>;
 } | null>(null);
 export function EstimateHoverContext(props: PropsWithChildren) {
   const [selectedEstimate, setSelectedEstimate] =
@@ -116,7 +116,7 @@ export function EstimateHoverContext(props: PropsWithChildren) {
   const val = useMemo(
     (): ContextType<typeof estimateHoverContext> => ({
       estimate: selectedEstimate,
-      setEstimateId: setSelectedEstimate,
+      setEstimate: setSelectedEstimate,
     }),
     [selectedEstimate, setSelectedEstimate],
   );

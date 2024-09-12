@@ -84,7 +84,8 @@ function TransitTimeEstimate({
     initTransitTimeEstimate,
     selectTransitTimeEstimateMode,
   } = useTripState(tripSlug);
-  const { estimate: estimateHovered } = useEstimateHover();
+  const { estimate: estimateHovered, setEstimate: setEstimateHovered } =
+    useEstimateHover();
   const estimateKey = `${stopIdFirst}--${stopIdSecond}` as const;
   const estimateDoc = estimatesByStops.get(estimateKey) ?? 'uninitialized';
   if (estimateDoc == 'uninitialized') {
@@ -126,6 +127,16 @@ function TransitTimeEstimate({
         hoveredMode={
           estimateHovered?.id === estimateDoc._id ? estimateHovered.mode : null
         }
+        setHoveredMode={(mode) => {
+          setEstimateHovered(
+            mode == null
+              ? null
+              : {
+                  mode: mode,
+                  id: estimateDoc._id,
+                },
+          );
+        }}
       />
     );
   }
@@ -153,6 +164,7 @@ function EstimateList({
       }
     | 'loading';
   hoveredMode: 'transit' | 'walk' | 'bicycle' | null;
+  setHoveredMode: (mode: 'transit' | 'walk' | 'bicycle' | null) => void;
 }) {
   const orIsLoading = (mode: 'walk' | 'transit' | 'bicycle') => {
     if (estimate === 'loading') {
@@ -165,6 +177,12 @@ function EstimateList({
     <div className={cn('flex w-full', props.className)}>
       {(['walk', 'transit', 'bicycle'] as const).map((mode) => (
         <Button
+          onMouseOver={() => {
+            props.setHoveredMode(mode);
+          }}
+          onMouseOut={() => {
+            props.setHoveredMode(null);
+          }}
           key={mode}
           variant="outline"
           size="sm"

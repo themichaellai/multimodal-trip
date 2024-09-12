@@ -9,6 +9,7 @@ import {
 import { Polyline } from '@/components/Polyline';
 import { useEstimateHover, useTripState } from './TripState';
 import { Doc, Id } from '../../../convex/_generated/dataModel';
+import { useEffect } from 'react';
 
 const GOOGLE_MAP_ID = '6506bf1b2b7e5dd';
 
@@ -120,18 +121,31 @@ function EstimateStopPolyline({
   estimate: Doc<'transitTimes'>['estimate'] | null;
   estimateId: Id<'transitTimes'>;
 }) {
-  const { setEstimateId, estimate: estimateHovered } = useEstimateHover();
+  const { setEstimate: setEstimateId, estimate: estimateHovered } =
+    useEstimateHover();
   if (estimate == null) {
     return null;
   }
   if (estimate.type === 'selection' && estimate.mode !== stepMode) {
     return null;
   }
-  const isSelection = estimate.type === 'selection';
+  const estimateIsSelection = estimate.type === 'selection';
+
+  // Don't show polyline if
+  // 1. the estimate is a "list"
+  // 2. the polyline's trip mode is not the same as the hovered mode
+  if (
+    estimate.type === 'list' &&
+    estimateHovered?.id === estimateId &&
+    estimateHovered?.mode !== stepTripMode
+  ) {
+    return null;
+  }
+
   return (
     <Polyline
       strokeColor={
-        isSelection ||
+        estimateIsSelection ||
         (estimateHovered?.id === estimateId &&
           estimateHovered?.mode === stepTripMode)
           ? transitTypeToPolylineStrokeColor[stepMode]
@@ -146,7 +160,7 @@ function EstimateStopPolyline({
       onMouseOut={() => {
         setEstimateId((curr) => (curr?.id === estimateId ? null : curr));
       }}
-      strokeWeight={isSelection ? 5 : 3}
+      strokeWeight={estimateIsSelection ? 5 : 3}
       encodedPath={polyline}
     />
   );
