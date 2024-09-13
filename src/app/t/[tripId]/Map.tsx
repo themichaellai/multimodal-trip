@@ -8,7 +8,7 @@ import {
 
 import { Polyline } from '@/components/Polyline';
 import { useEstimateHover, useTripStatePreloaded } from './TripState';
-import { Doc, Id } from '../../../convex/_generated/dataModel';
+import { Doc, Id } from '../../../../convex/_generated/dataModel';
 import { use, useMemo } from 'react';
 import {
   type PreloadedTripSteps,

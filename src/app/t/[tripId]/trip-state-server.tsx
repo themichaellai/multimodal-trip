@@ -1,6 +1,6 @@
 import 'server-only';
 import { preloadQuery } from 'convex/nextjs';
-import { api } from '../../../convex/_generated/api';
+import { api } from '../../../../convex/_generated/api';
 
 export function preloadTrip(tripSlug: string) {
   return preloadQuery(api.trips.getBySlug, { slug: tripSlug });

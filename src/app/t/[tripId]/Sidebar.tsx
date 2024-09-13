@@ -25,7 +25,7 @@ import {
   useTripState,
   useTripStatePreloaded,
 } from './TripState';
-import { Doc, Id } from '../../../convex/_generated/dataModel';
+import { Doc, Id } from '../../../../convex/_generated/dataModel';
 import { cn } from '@/lib/utils';
 import {
   type PreloadedTripSteps,

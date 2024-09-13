@@ -1,4 +1,5 @@
 import { customAlphabet } from 'nanoid';
+import { getAuthUserId } from '@convex-dev/auth/server';
 
 import {
   internalMutation,
@@ -7,8 +8,9 @@ import {
   query,
 } from './_generated/server';
 import { v } from 'convex/values';
-import { Doc, Id } from './_generated/dataModel';
+import { DataModel, Doc, Id } from './_generated/dataModel';
 import { internal } from './_generated/api';
+import { GenericMutationCtx } from 'convex/server';
 
 // "nolookalikes" from nanoid-dictionary
 const nanoid = customAlphabet(
@@ -57,21 +59,55 @@ export const getBySlug = query({
   },
 });
 
+const createNewTrip = async (
+  ctx: GenericMutationCtx<DataModel>,
+  userId: Id<'users'>,
+) => {
+  for (const _ of Array(10)) {
+    const slug = createSlug();
+    const existingTrip = await ctx.db
+      .query('trips')
+      .filter((q) => q.eq(q.field('slug'), slug))
+      .first();
+    if (existingTrip == null) {
+      const tripId = await ctx.db.insert('trips', {
+        slug,
+        stops: [],
+        owner: userId,
+      });
+      return { id: tripId, slug };
+    }
+  }
+  throw new Error('failed to create trip');
+};
+
+export const getOrCreateLatestTrip = mutation({
+  args: {},
+  handler: async (ctx): Promise<{ slug: string }> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId == null) {
+      throw new Error('unauthenticated');
+    }
+    const latestTrip = await ctx.db
+      .query('trips')
+      .filter((q) => q.eq(q.field('owner'), userId))
+      .order('desc')
+      .first();
+    if (latestTrip == null) {
+      return { slug: (await createNewTrip(ctx, userId)).slug };
+    }
+    return { slug: latestTrip.slug };
+  },
+});
+
 export const createTrip = mutation({
   args: {},
   handler: async (ctx): Promise<{ id: Doc<'trips'>['_id']; slug: string }> => {
-    for (const _ of Array(10)) {
-      const slug = createSlug();
-      const existingTrip = await ctx.db
-        .query('trips')
-        .filter((q) => q.eq(q.field('slug'), slug))
-        .first();
-      if (existingTrip == null) {
-        const tripId = await ctx.db.insert('trips', { slug, stops: [] });
-        return { id: tripId, slug };
-      }
+    const userId = await getAuthUserId(ctx);
+    if (userId == null) {
+      throw new Error('unauthenticated');
     }
-    throw new Error('failed to create trip');
+    return createNewTrip(ctx, userId);
   },
 });
 

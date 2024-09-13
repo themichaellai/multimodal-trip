@@ -11,8 +11,8 @@ import {
   ContextType,
 } from 'react';
 import { useQuery, useMutation, usePreloadedQuery } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
-import { Id } from '../../../convex/_generated/dataModel';
+import { api } from '../../../../convex/_generated/api';
+import { Id } from '../../../../convex/_generated/dataModel';
 import { PreloadedTrip, PreloadedTripSteps } from './trip-state-server';
 
 export function useTripStatePreloaded(

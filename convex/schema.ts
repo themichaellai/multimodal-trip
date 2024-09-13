@@ -1,12 +1,16 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
+import { authTables } from '@convex-dev/auth/server';
 
 const transitMode = () =>
   v.union(v.literal('transit'), v.literal('bicycle'), v.literal('walk'));
+
 export default defineSchema({
+  ...authTables,
   trips: defineTable({
     slug: v.string(),
     stops: v.array(v.id('stops')),
+    owner: v.id('users'),
   }),
   stops: defineTable({
     name: v.union(v.string(), v.null()),
