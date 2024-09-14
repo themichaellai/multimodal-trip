@@ -8,6 +8,7 @@ const transitMode = () =>
 export default defineSchema({
   ...authTables,
   trips: defineTable({
+    name: v.string(),
     slug: v.string(),
     stops: v.array(v.id('stops')),
     owner: v.id('users'),

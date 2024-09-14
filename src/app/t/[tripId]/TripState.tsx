@@ -121,6 +121,25 @@ function useInner(
     },
   );
 
+  const editTripName = useMutation(
+    api.trips.updateTripName,
+  ).withOptimisticUpdate((localStore, args) => {
+    const tripState = localStore.getQuery(api.trips.getBySlug, {
+      slug: tripSlug,
+    });
+    if (tripState == null) {
+      return;
+    }
+    localStore.setQuery(
+      api.trips.getBySlug,
+      { slug: tripSlug },
+      {
+        ...tripState,
+        trip: { ...tripState.trip, name: args.name },
+      },
+    );
+  });
+
   const initTransitTimeEstimate = useMutation(
     api.trips.initTransitTimeEstimate,
   );
@@ -140,6 +159,7 @@ function useInner(
   return {
     trip: trip?.trip ?? null,
     stops: trip?.stops ?? [],
+    editTripName,
     addStop,
     removeStop,
     editStopName,

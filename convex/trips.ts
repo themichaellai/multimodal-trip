@@ -71,6 +71,7 @@ const createNewTrip = async (
       .first();
     if (existingTrip == null) {
       const tripId = await ctx.db.insert('trips', {
+        name: 'My nice trip',
         slug,
         stops: [],
         owner: userId,
@@ -408,5 +409,28 @@ export const getTransitTimeEstimateSteps = query({
       }),
     );
     return steps;
+  },
+});
+
+export const updateTripName = mutation({
+  args: { tripId: v.id('trips'), name: v.string() },
+  handler: async (ctx, params) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId == null) {
+      throw new Error('unauthenticated');
+    }
+    const trip = await ctx.db
+      .query('trips')
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('_id'), params.tripId),
+          q.eq(q.field('owner'), userId),
+        ),
+      )
+      .first();
+    if (trip == null) {
+      return;
+    }
+    await ctx.db.patch(trip._id, { name: params.name });
   },
 });
