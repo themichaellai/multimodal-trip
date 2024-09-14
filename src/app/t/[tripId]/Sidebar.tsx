@@ -16,7 +16,6 @@ import {
   ReloadIcon,
   Pencil1Icon,
 } from '@radix-ui/react-icons';
-
 import { TextSmall, TextLarge } from '@/components/typography';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -34,15 +33,14 @@ import {
 
 export default function Sidebar({
   tripSlug,
-  trip,
-  estimateSteps,
+  ...props
 }: {
   tripSlug: string;
   trip: Promise<PreloadedTrip>;
   estimateSteps: Promise<PreloadedTripSteps>;
 }) {
-  const { stops, removeStop, editStopName, estimatesByStops } =
-    useTripStatePreloaded(tripSlug, use(trip), use(estimateSteps));
+  const { stops, removeStop, editStopName, estimatesByStops, isOwner } =
+    useTripStatePreloaded(tripSlug, use(props.trip), use(props.estimateSteps));
   const [editedStop, setEditedStop] = useState<Id<'stops'> | null>(null);
   return (
     <>
@@ -68,12 +66,16 @@ export default function Sidebar({
                   <TextSmall className="font-semibold">
                     {stop.name ?? 'Place'}
                   </TextSmall>
-                  <EditStopNameButton
-                    toggleEdit={() => {
-                      setEditedStop((s) => (s === stop._id ? null : stop._id));
-                    }}
-                  />
-                  {index < stops.length - 1 ? null : (
+                  {!isOwner ? null : (
+                    <EditStopNameButton
+                      toggleEdit={() => {
+                        setEditedStop((s) =>
+                          s === stop._id ? null : stop._id,
+                        );
+                      }}
+                    />
+                  )}
+                  {index < stops.length - 1 || !isOwner ? null : (
                     <RemoveStopButton
                       removeStop={() => {
                         removeStop({ stopId: stop._id });

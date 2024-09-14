@@ -16,7 +16,7 @@ export default function Home({ params }: { params: { tripId: string } }) {
       <GoogleMapsAPIProvider
         apiKey={process.env.NEXT_PUBLIC_GOOGLE_API_KEY ?? ''}
       >
-        <div className="flex flex-col gap-3 px-3 pt-3 h-screen">
+        <div className="flex flex-col gap-3 px-6 pt-3 h-screen">
           <TripHeader
             estimateSteps={estimateSteps}
             trip={tripQuery}

@@ -30,6 +30,7 @@ export const getBySlug = query({
     trip: Doc<'trips'>;
     stops: Array<Doc<'stops'>>;
     estimates: Array<Doc<'transitTimes'>>;
+    isOwner: boolean;
   } | null> => {
     const trip = await ctx.db
       .query('trips')
@@ -49,12 +50,15 @@ export const getBySlug = query({
         q.or(...trip.stops.map((s) => q.eq(q.field('stopIdFirst'), s))),
       )
       .collect();
+
+    const userId = await getAuthUserId(ctx);
     return {
       trip,
       stops: stops.sort(
         (a, b) => trip.stops.indexOf(a._id) - trip.stops.indexOf(b._id),
       ),
       estimates,
+      isOwner: trip.owner === userId,
     };
   },
 });
@@ -115,6 +119,22 @@ export const createTrip = mutation({
 export const setStopName = mutation({
   args: { stopId: v.id('stops'), name: v.string() },
   handler: async (ctx, params) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId == null) {
+      throw new Error('unauthenticated');
+    }
+    const stop = await ctx.db.get(params.stopId);
+    if (stop == null) {
+      return;
+    }
+    const trip = await ctx.db.get(stop.tripId);
+    if (trip == null) {
+      return;
+    }
+    if (trip.owner !== userId) {
+      throw new Error('unauthorized');
+    }
+
     await ctx.db.patch(params.stopId, { name: params.name });
   },
 });
@@ -136,6 +156,9 @@ export const addStop = mutation({
       .first();
     if (trip == null) {
       return;
+    }
+    if (trip.owner !== (await getAuthUserId(ctx))) {
+      throw new Error('unauthorized');
     }
     const newStopId = await ctx.db.insert('stops', {
       lat: params.stop.lat,
@@ -160,6 +183,11 @@ export const removeStop = mutation({
     stopId: v.id('stops'),
   },
   handler: async (ctx, params) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId == null) {
+      throw new Error('unauthenticated');
+    }
+
     const stop = await ctx.db
       .query('stops')
       .filter((q) => q.eq(q.field('_id'), params.stopId))
@@ -171,13 +199,17 @@ export const removeStop = mutation({
       .query('trips')
       .filter((q) => q.eq(q.field('_id'), stop.tripId))
       .first();
+    if (trip == null) {
+      return;
+    }
+    if (trip.owner !== userId) {
+      throw new Error('unauthorized');
+    }
 
     await ctx.db.delete(params.stopId);
-    if (trip != null) {
-      await ctx.db.patch(trip._id, {
-        stops: trip.stops.filter((s) => s !== params.stopId),
-      });
-    }
+    await ctx.db.patch(trip._id, {
+      stops: trip.stops.filter((s) => s !== params.stopId),
+    });
   },
 });
 
@@ -194,6 +226,23 @@ export const initTransitTimeEstimate = mutation({
     stopIdSecond: v.id('stops'),
   },
   handler: async (ctx, params) => {
+    // Fetch trips for both stops
+    const stopFirst = await ctx.db.get(params.stopIdFirst);
+    const stopSecond = await ctx.db.get(params.stopIdSecond);
+    if (stopFirst == null || stopSecond == null) {
+      throw new Error('One or both stops not found');
+    }
+    if (stopFirst.tripId !== stopSecond.tripId) {
+      throw new Error('stops belong to different trips');
+    }
+    const trip = await ctx.db.get(stopFirst.tripId);
+    if (trip == null) {
+      throw new Error('trip not found');
+    }
+    if (trip.owner !== (await getAuthUserId(ctx))) {
+      throw new Error('unauthorized');
+    }
+
     // TODO: Add rate limiting
     const existing = await ctx.db
       .query('transitTimes')
@@ -327,6 +376,23 @@ export const selectTransitTimeEstimateMode = mutation({
     ),
   },
   handler: async (ctx, params) => {
+    // Fetch trip and check that user is authed and authed user is owner
+    const userId = await getAuthUserId(ctx);
+    if (userId == null) {
+      throw new Error('unauthenticated');
+    }
+    const stopFirst = await ctx.db.get(params.stopIdFirst);
+    if (stopFirst == null) {
+      throw new Error('first stop not found');
+    }
+    const trip = await ctx.db.get(stopFirst.tripId);
+    if (trip == null) {
+      throw new Error('trip not found');
+    }
+    if (trip.owner !== userId) {
+      throw new Error('unauthorized');
+    }
+
     const existing = await ctx.db
       .query('transitTimes')
       .filter((q) =>

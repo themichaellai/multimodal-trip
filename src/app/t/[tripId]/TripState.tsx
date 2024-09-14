@@ -159,6 +159,7 @@ function useInner(
   return {
     trip: trip?.trip ?? null,
     stops: trip?.stops ?? [],
+    isOwner: trip?.isOwner ?? false,
     editTripName,
     addStop,
     removeStop,

@@ -47,7 +47,7 @@ export default function Map(
     estimateSteps: Promise<PreloadedTripSteps>;
   },
 ) {
-  const { trip, stops, addStop, estimatesById, estimateSteps } =
+  const { trip, stops, addStop, estimatesById, estimateSteps, isOwner } =
     useTripStatePreloaded(
       props.tripSlug,
       use(props.trip),
@@ -137,6 +137,9 @@ export default function Map(
       disableDefaultUI={true}
       mapId={GOOGLE_MAP_ID}
       onClick={(e) => {
+        if (!isOwner) {
+          return;
+        }
         if (trip == null) {
           return;
         }
