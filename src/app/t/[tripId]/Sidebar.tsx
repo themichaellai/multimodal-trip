@@ -3,9 +3,11 @@
 import {
   ComponentProps,
   Fragment,
+  PropsWithChildren,
   use,
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 import {
@@ -19,6 +21,11 @@ import {
 import { TextSmall, TextLarge } from '@/components/typography';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   useEstimateHover,
   useTripState,
@@ -39,13 +46,37 @@ export default function Sidebar({
   trip: Promise<PreloadedTrip>;
   estimateSteps: Promise<PreloadedTripSteps>;
 }) {
-  const { stops, removeStop, editStopName, estimatesByStops, isOwner } =
-    useTripStatePreloaded(tripSlug, use(props.trip), use(props.estimateSteps));
+  const {
+    stops,
+    removeStop,
+    editStopName,
+    estimatesByStops,
+    estimateSteps,
+    isOwner,
+  } = useTripStatePreloaded(
+    tripSlug,
+    use(props.trip),
+    use(props.estimateSteps),
+  );
   const [editedStop, setEditedStop] = useState<Id<'stops'> | null>(null);
+  const estimateStepsByStopPairs = useMemo(() => {
+    if (estimateSteps == null) {
+      return null;
+    }
+    return new Map(
+      estimateSteps.map(
+        (s) =>
+          [
+            `${s.stopIdFirst}--${s.stopIdSecond}` as const,
+            s.tripSteps,
+          ] as const,
+      ),
+    );
+  }, [estimateSteps]);
   return (
     <>
       <TextLarge className="mb-1">Stops</TextLarge>
-      <div>
+      <div className="flex flex-col items-stretch">
         {stops.map((stop, index) => (
           <Fragment key={stop._id}>
             <div className="flex items-center gap-2 py-3 h-9">
@@ -86,6 +117,11 @@ export default function Sidebar({
                       `${stop._id}--${stops[index + 1]._id}`,
                     ) ?? null
                   }
+                  estimateSteps={
+                    estimateStepsByStopPairs?.get(
+                      `${stop._id}--${stops[index + 1]._id}`,
+                    ) ?? []
+                  }
                 />
               </div>
             )}
@@ -108,6 +144,7 @@ const transitModeToEmoji = {
   walk: <>&#128694;</>,
   transit: <>&#128652;</>,
   bicycle: <>&#128690;</>,
+  unknown: <>&#10067;</>,
 } as const;
 
 function TransitTimeEstimate({
@@ -115,11 +152,13 @@ function TransitTimeEstimate({
   stopIdSecond,
   tripSlug,
   estimateDoc,
+  estimateSteps,
 }: {
   estimateDoc: Doc<'transitTimes'> | null;
   stopIdFirst: Id<'stops'>;
   stopIdSecond: Id<'stops'>;
   tripSlug: string;
+  estimateSteps: Doc<'tripSteps'>[];
 }) {
   const { initTransitTimeEstimate, selectTransitTimeEstimateMode } =
     useTripState(tripSlug);
@@ -161,6 +200,7 @@ function TransitTimeEstimate({
           })
         }
         estimate={estimate ?? 'loading'}
+        estimateSteps={estimateSteps}
         hoveredMode={
           estimateHovered?.id === estimateDoc._id ? estimateHovered.mode : null
         }
@@ -179,18 +219,36 @@ function TransitTimeEstimate({
   }
 
   return (
-    <TextSmall>
-      {transitModeToEmoji[estimate.mode]} {secondsToString(estimate.seconds)}
-    </TextSmall>
+    <StepPopover
+      steps={estimateSteps.filter((s) => s.tripMode === estimate.mode)}
+    >
+      <TextSmall>
+        {transitModeToEmoji[estimate.mode]} {secondsToString(estimate.seconds)}
+      </TextSmall>
+    </StepPopover>
   );
 }
 
+const groupTripStepsByTripMode = (steps: Array<Doc<'tripSteps'>>) => {
+  const grouped = new Map<
+    'transit' | 'walk' | 'bicycle',
+    Array<Doc<'tripSteps'>>
+  >();
+  for (const step of steps) {
+    if (!grouped.has(step.tripMode)) {
+      grouped.set(step.tripMode, []);
+    }
+    grouped.get(step.tripMode)?.push(step);
+  }
+  return grouped;
+};
+
 function EstimateList({
   estimate,
+  estimateSteps,
   ...props
 }: {
   className?: string;
-
   initTransitTimeEstimate: () => void;
   selectTransitTimeEstimateMode: (s: 'transit' | 'walk' | 'bicycle') => void;
   estimate:
@@ -202,6 +260,7 @@ function EstimateList({
     | 'loading';
   hoveredMode: 'transit' | 'walk' | 'bicycle' | null;
   setHoveredMode: (mode: 'transit' | 'walk' | 'bicycle' | null) => void;
+  estimateSteps: Array<Doc<'tripSteps'>>;
 }) {
   const orIsLoading = (mode: 'walk' | 'transit' | 'bicycle') => {
     if (estimate === 'loading') {
@@ -210,29 +269,34 @@ function EstimateList({
     const s = secondsToString(estimate[`${mode}Seconds`]);
     return <TextSmall>{s}</TextSmall>;
   };
+  const groupedSteps = useMemo(
+    () => groupTripStepsByTripMode(estimateSteps),
+    [estimateSteps],
+  );
   return (
     <div className={cn('flex w-full', props.className)}>
       {(['walk', 'transit', 'bicycle'] as const).map((mode) => (
-        <Button
-          onMouseOver={() => {
-            props.setHoveredMode(mode);
-          }}
-          onMouseOut={() => {
-            props.setHoveredMode(null);
-          }}
-          key={mode}
-          variant="outline"
-          size="sm"
-          onClick={() => props.selectTransitTimeEstimateMode(mode)}
-          disabled={estimate === 'loading'}
-          className={cn(
-            'flex-1 w-0',
-            props.hoveredMode === mode && 'bg-accent',
-          )}
-        >
-          {transitModeToEmoji[mode]}{' '}
-          <span className="ml-1">{orIsLoading(mode)}</span>
-        </Button>
+        <StepPopover key={mode} asChild steps={groupedSteps.get(mode) ?? []}>
+          <Button
+            onMouseOver={() => {
+              props.setHoveredMode(mode);
+            }}
+            onMouseOut={() => {
+              props.setHoveredMode(null);
+            }}
+            variant="outline"
+            size="sm"
+            onClick={() => props.selectTransitTimeEstimateMode(mode)}
+            disabled={estimate === 'loading'}
+            className={cn(
+              'flex-1 w-0',
+              props.hoveredMode === mode && 'bg-accent',
+            )}
+          >
+            {transitModeToEmoji[mode]}{' '}
+            <span className="ml-1">{orIsLoading(mode)}</span>
+          </Button>
+        </StepPopover>
       ))}
       <Button
         key="refresh"
@@ -243,6 +307,61 @@ function EstimateList({
       >
         <ReloadIcon className="h-3 w-3" />
       </Button>
+    </div>
+  );
+}
+
+/** Generates a estimate summary of steps suitable for tooltip. */
+const stepsSummary = (
+  steps: Array<Doc<'tripSteps'>>,
+): Array<{
+  mode: Doc<'tripSteps'>['stepMode'];
+  durationSeconds: number;
+}> => {
+  const stepsSorted = steps.sort((a, b) => a.stepIndex - b.stepIndex);
+  const res: Array<{
+    mode: Doc<'tripSteps'>['stepMode'];
+    durationSeconds: number;
+  }> = [];
+  for (const step of stepsSorted) {
+    const last = res.at(-1);
+    if (last != null && last.mode === step.stepMode) {
+      last.durationSeconds += step.seconds;
+    } else {
+      res.push({
+        mode: step.stepMode,
+        durationSeconds: step.seconds,
+      });
+    }
+  }
+  return res;
+};
+
+function StepPopover({
+  steps,
+  children,
+  asChild,
+}: PropsWithChildren<{ steps: Array<Doc<'tripSteps'>>; asChild?: boolean }>) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild={asChild}>{children}</TooltipTrigger>
+      <TooltipContent>
+        <StepPopoverContent steps={steps} />
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+function StepPopoverContent({ steps }: { steps: Array<Doc<'tripSteps'>> }) {
+  const summary = stepsSummary(steps);
+  return (
+    <div className="flex flex-col gap-2">
+      {summary.map((s, i) => (
+        <div key={i}>
+          <TextSmall>
+            {transitModeToEmoji[s.mode]} {secondsToString(s.durationSeconds)}
+          </TextSmall>
+        </div>
+      ))}
     </div>
   );
 }
@@ -371,7 +490,7 @@ function StopEdit({
   return (
     <>
       <Input
-        className="w-auto"
+        className="flex-1"
         value={val}
         placeholder={placeholder ?? undefined}
         onChange={(e) => {
