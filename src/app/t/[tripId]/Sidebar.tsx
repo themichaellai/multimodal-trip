@@ -50,40 +50,25 @@ export default function Sidebar({
           <Fragment key={stop._id}>
             <div className="flex items-center gap-2 py-3 h-9">
               <DotIcon className="h-5 w-5 text-muted-foreground" />
-              {editedStop === stop._id ? (
-                <StopEdit
-                  placeholder={stop.name}
-                  cancelEdit={() => {
-                    setEditedStop(null);
-                  }}
-                  saveEdit={(newName) => {
-                    editStopName({ stopId: stop._id, name: newName });
-                    setEditedStop(null);
-                  }}
-                />
-              ) : (
-                <>
-                  <TextSmall className="font-semibold">
-                    {stop.name ?? 'Place'}
-                  </TextSmall>
-                  {!isOwner ? null : (
-                    <EditStopNameButton
-                      toggleEdit={() => {
-                        setEditedStop((s) =>
-                          s === stop._id ? null : stop._id,
-                        );
-                      }}
-                    />
-                  )}
-                  {index < stops.length - 1 || !isOwner ? null : (
-                    <RemoveStopButton
-                      removeStop={() => {
+              <StopEditable
+                stopName={stop.name ?? 'Place'}
+                editEnabled={isOwner}
+                isEditing={editedStop === stop._id}
+                toggleEdit={() => {
+                  setEditedStop((s) => (s === stop._id ? null : stop._id));
+                }}
+                removeStop={
+                  index < stops.length - 1 || !isOwner
+                    ? null
+                    : () => {
                         removeStop({ stopId: stop._id });
-                      }}
-                    />
-                  )}
-                </>
-              )}
+                      }
+                }
+                saveEdit={(newName) => {
+                  editStopName({ stopId: stop._id, name: newName });
+                  setEditedStop(null);
+                }}
+              />
             </div>
 
             {index >= stops.length - 1 ? null : (
@@ -291,6 +276,71 @@ function ActionButton(props: ComponentProps<typeof Button>) {
   );
 }
 
+function StopEditable({
+  stopName,
+  editEnabled,
+  isEditing,
+  toggleEdit,
+  removeStop,
+  saveEdit,
+}: {
+  stopName: string;
+  editEnabled: boolean;
+  isEditing: boolean;
+  toggleEdit: () => void;
+  removeStop: (() => void) | null;
+  saveEdit: (newName: string) => void;
+}) {
+  return isEditing ? (
+    <StopEdit
+      placeholder={stopName}
+      cancelEdit={toggleEdit}
+      saveEdit={(newName) => {
+        saveEdit(newName);
+      }}
+    />
+  ) : (
+    <StopDisplay
+      stopName={stopName}
+      editEnabled={editEnabled}
+      toggleEdit={() => {
+        toggleEdit();
+      }}
+      removeStop={removeStop}
+    />
+  );
+}
+function StopDisplay({
+  stopName,
+  editEnabled,
+  toggleEdit,
+  removeStop,
+}: {
+  stopName: string;
+  editEnabled: boolean;
+  toggleEdit: () => void;
+  removeStop: (() => void) | null;
+}) {
+  return (
+    <>
+      <TextSmall className="font-semibold">{stopName}</TextSmall>
+      {!editEnabled ? null : (
+        <EditStopNameButton
+          toggleEdit={() => {
+            toggleEdit();
+          }}
+        />
+      )}
+      {removeStop == null ? null : (
+        <RemoveStopButton
+          removeStop={() => {
+            removeStop();
+          }}
+        />
+      )}
+    </>
+  );
+}
 function StopEdit({
   placeholder,
   cancelEdit,

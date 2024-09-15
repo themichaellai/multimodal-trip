@@ -133,6 +133,7 @@ export default function Map(
         west: bounds.west,
         padding: 50, // Add some padding around the bounds
       }}
+      colorScheme="FOLLOW_SYSTEM"
       gestureHandling={'greedy'}
       disableDefaultUI={true}
       mapId={GOOGLE_MAP_ID}
