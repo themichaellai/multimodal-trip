@@ -193,7 +193,7 @@ function EstimateStopPolyline({
   if (estimate == null) {
     return null;
   }
-  if (estimate.type === 'selection' && estimate.mode !== stepMode) {
+  if (estimate.type === 'selection' && estimate.mode !== stepTripMode) {
     return null;
   }
   const estimateIsSelection = estimate.type === 'selection';
