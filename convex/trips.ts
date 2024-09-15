@@ -500,3 +500,18 @@ export const updateTripName = mutation({
     await ctx.db.patch(trip._id, { name: params.name });
   },
 });
+
+export const getUserTrips = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId == null) {
+      throw new Error('unauthenticated');
+    }
+    return ctx.db
+      .query('trips')
+      .filter((q) => q.eq(q.field('owner'), userId))
+      .order('desc')
+      .collect();
+  },
+});
