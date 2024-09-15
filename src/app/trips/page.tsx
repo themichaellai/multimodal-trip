@@ -1,10 +1,31 @@
 import { Suspense } from 'react';
+import {
+  convexAuthNextjsToken,
+  isAuthenticatedNextjs,
+} from '@convex-dev/auth/nextjs/server';
+import { redirect } from 'next/navigation';
+import { fetchQuery } from 'convex/nextjs';
 
 import { TripGrid } from './TripGrid';
 import { getUserTrips } from './trips-server';
 import { TripCreateButton } from './TripCreateButton';
+import { api } from '../../../convex/_generated/api';
 
-export default function Page() {
+export default async function Page() {
+  if (!isAuthenticatedNextjs()) {
+    return redirect('/auth');
+  }
+  const { hasAccess } = await fetchQuery(
+    api.users.getUserAccess,
+    {},
+    {
+      token: convexAuthNextjsToken(),
+    },
+  );
+  if (!hasAccess) {
+    return redirect('/access');
+  }
+
   const trips = getUserTrips();
 
   return (
