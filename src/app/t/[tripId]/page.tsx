@@ -24,12 +24,14 @@ export default function Home({ params }: { params: { tripId: string } }) {
           apiKey={process.env.NEXT_PUBLIC_GOOGLE_API_KEY ?? ''}
         >
           <div className="flex flex-col gap-3 px-6 pt-3 h-screen">
-            <TripHeader
-              estimateSteps={estimateSteps}
-              trip={tripQuery}
-              tripSlug={params.tripId}
-              user={userId}
-            />
+            <Suspense>
+              <TripHeader
+                estimateSteps={estimateSteps}
+                trip={tripQuery}
+                tripSlug={params.tripId}
+                user={userId}
+              />
+            </Suspense>
             <div className="flex flex-1 mb-3">
               <div className="w-[80%] rounded-md">
                 <Suspense>

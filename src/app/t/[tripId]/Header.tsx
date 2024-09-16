@@ -60,7 +60,7 @@ function HeaderActions(props: { user: Promise<PreloadedUser> }) {
       {user == null ? null : (
         <Link href="/trips">
           <Button variant="outline" size="icon">
-            <HomeIcon />
+            <HomeIcon className="w-[14px] h-[14px]" />
           </Button>
         </Link>
       )}
