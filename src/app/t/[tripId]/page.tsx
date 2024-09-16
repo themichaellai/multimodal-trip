@@ -5,12 +5,17 @@ import Map from './Map';
 import GoogleMapsAPIProvider from './GoogleMapsApiProvider';
 import Sidebar from './Sidebar';
 import { EstimateHoverContext } from './TripState';
-import { preloadTrip, preloadTripSteps } from './trip-state-server';
+import {
+  preloadTrip,
+  preloadTripSteps,
+  preloadUser,
+} from './trip-state-server';
 import { TripHeader } from './Header';
 
 export default function Home({ params }: { params: { tripId: string } }) {
   const tripQuery = preloadTrip(params.tripId);
   const estimateSteps = preloadTripSteps(params.tripId);
+  const userId = preloadUser();
 
   return (
     <TooltipProvider>
@@ -23,6 +28,7 @@ export default function Home({ params }: { params: { tripId: string } }) {
               estimateSteps={estimateSteps}
               trip={tripQuery}
               tripSlug={params.tripId}
+              user={userId}
             />
             <div className="flex flex-1 mb-3">
               <div className="w-[80%] rounded-md">

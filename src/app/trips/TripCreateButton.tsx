@@ -15,7 +15,7 @@ export function TripCreateButton() {
     router.push(`/t/${trip.slug}`);
   };
   return (
-    <Button size="sm" variant="secondary" onClick={createAndNavigate}>
+    <Button size="sm" variant="outline" onClick={createAndNavigate}>
       <PlusIcon className="mr-1" /> New
     </Button>
   );

@@ -1,7 +1,7 @@
 import { getAuthUserId } from '@convex-dev/auth/server';
 import { query } from './_generated/server';
 import { GenericQueryCtx } from 'convex/server';
-import { DataModel } from './_generated/dataModel';
+import { DataModel, Id } from './_generated/dataModel';
 
 const userHasAccess = async (
   ctx: GenericQueryCtx<DataModel>,
@@ -20,5 +20,16 @@ export const getUserAccess = query({
     return {
       hasAccess: await userHasAccess(ctx),
     };
+  },
+});
+
+export const getCurrentUser = query({
+  args: {},
+  handler: async (ctx): Promise<Id<'users'> | null> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId == null) {
+      return null;
+    }
+    return userId;
   },
 });

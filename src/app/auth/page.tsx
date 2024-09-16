@@ -2,6 +2,7 @@
 
 import { useAuthActions } from '@convex-dev/auth/react';
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -15,8 +16,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export default function Page() {
+  const searchParams = useSearchParams();
   const { signIn } = useAuthActions();
-  const [step, setStep] = useState<'signUp' | 'signIn'>('signIn');
+  const [step, setStep] = useState<'signUp' | 'signIn'>(() =>
+    searchParams.get('m') === 'signUp' ? 'signUp' : 'signIn',
+  );
 
   return (
     <div className="flex h-screen justify-center items-center pt-4 pb-4">

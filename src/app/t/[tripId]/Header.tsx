@@ -1,16 +1,25 @@
 'use client';
 
-import { use, useCallback, useEffect, useState, useRef } from 'react';
+import { use, useCallback, useEffect, useState, useRef, Suspense } from 'react';
+import { EnterIcon, HomeIcon } from '@radix-ui/react-icons';
+import Link from 'next/link';
+import { usePreloadedQuery } from 'convex/react';
 
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { PreloadedTrip, PreloadedTripSteps } from './trip-state-server';
+import { Button } from '@/components/ui/button';
+import {
+  PreloadedTrip,
+  PreloadedTripSteps,
+  PreloadedUser,
+} from './trip-state-server';
 import { useTripStatePreloaded } from './TripState';
 
 export function TripHeader(props: {
   tripSlug: string;
   trip: Promise<PreloadedTrip>;
   estimateSteps: Promise<PreloadedTripSteps>;
+  user: Promise<PreloadedUser>;
 }) {
   const { trip, editTripName, isOwner } = useTripStatePreloaded(
     props.tripSlug,
@@ -29,11 +38,40 @@ export function TripHeader(props: {
   );
 
   return (
-    <EditableHeader
-      value={trip?.name ?? 'My trip'}
-      onSubmit={handleSubmit}
-      editable={isOwner}
-    />
+    <div className="flex items-center">
+      <div className="w-[80%]">
+        <EditableHeader
+          value={trip?.name ?? 'My trip'}
+          onSubmit={handleSubmit}
+          editable={isOwner}
+        />
+      </div>
+      <Suspense>
+        <HeaderActions user={props.user} />
+      </Suspense>
+    </div>
+  );
+}
+
+function HeaderActions(props: { user: Promise<PreloadedUser> }) {
+  const user = usePreloadedQuery(use(props.user));
+  return (
+    <div className="flex flex-1 justify-end">
+      {user == null ? null : (
+        <Link href="/trips">
+          <Button variant="outline" size="icon">
+            <HomeIcon />
+          </Button>
+        </Link>
+      )}
+      {user != null ? null : (
+        <Link href="/auth?m=signUp">
+          <Button variant="outline">
+            <EnterIcon className="mr-1" /> Sign up
+          </Button>
+        </Link>
+      )}
+    </div>
   );
 }
 

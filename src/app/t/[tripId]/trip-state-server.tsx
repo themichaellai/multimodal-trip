@@ -25,3 +25,15 @@ export function preloadTripSteps(tripSlug: string) {
   );
 }
 export type PreloadedTripSteps = Awaited<ReturnType<typeof preloadTripSteps>>;
+
+export function preloadUser() {
+  return preloadQuery(
+    api.users.getCurrentUser,
+    {},
+    {
+      token: convexAuthNextjsToken(),
+    },
+  );
+}
+
+export type PreloadedUser = Awaited<ReturnType<typeof preloadUser>>;
