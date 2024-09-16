@@ -109,6 +109,7 @@ export default function Sidebar({
               >
                 <DotsVerticalIcon className="h-5 w-5 text-muted-foreground" />
                 <TransitTimeEstimate
+                  editable={isOwner}
                   stopIdFirst={stop._id}
                   stopIdSecond={stops[index + 1]._id}
                   tripSlug={tripSlug}
@@ -144,21 +145,24 @@ const transitModeToEmoji = {
   walk: <>&#128694;</>,
   transit: <>&#128652;</>,
   bicycle: <>&#128690;</>,
-  unknown: <>&#10067;</>,
+  unknown: <>&#10067;</>, // question mark
 } as const;
 
+/** Displays a transit time estimate list or a selection of a single mode. */
 function TransitTimeEstimate({
   stopIdFirst,
   stopIdSecond,
   tripSlug,
   estimateDoc,
   estimateSteps,
+  editable,
 }: {
   estimateDoc: Doc<'transitTimes'> | null;
   stopIdFirst: Id<'stops'>;
   stopIdSecond: Id<'stops'>;
   tripSlug: string;
   estimateSteps: Doc<'tripSteps'>[];
+  editable: boolean;
 }) {
   const { initTransitTimeEstimate, selectTransitTimeEstimateMode } =
     useTripState(tripSlug);
@@ -214,6 +218,7 @@ function TransitTimeEstimate({
                 },
           );
         }}
+        editable={editable}
       />
     );
   }
@@ -221,6 +226,7 @@ function TransitTimeEstimate({
   return (
     <StepPopover
       steps={estimateSteps.filter((s) => s.tripMode === estimate.mode)}
+      cursorDefault
     >
       <TextSmall>
         {transitModeToEmoji[estimate.mode]} {secondsToString(estimate.seconds)}
@@ -246,6 +252,7 @@ const groupTripStepsByTripMode = (steps: Array<Doc<'tripSteps'>>) => {
 function EstimateList({
   estimate,
   estimateSteps,
+  editable,
   ...props
 }: {
   className?: string;
@@ -261,6 +268,7 @@ function EstimateList({
   hoveredMode: 'transit' | 'walk' | 'bicycle' | null;
   setHoveredMode: (mode: 'transit' | 'walk' | 'bicycle' | null) => void;
   estimateSteps: Array<Doc<'tripSteps'>>;
+  editable: boolean;
 }) {
   const orIsLoading = (mode: 'walk' | 'transit' | 'bicycle') => {
     if (estimate === 'loading') {
@@ -286,10 +294,15 @@ function EstimateList({
             }}
             variant="outline"
             size="sm"
-            onClick={() => props.selectTransitTimeEstimateMode(mode)}
+            onClick={
+              !editable
+                ? undefined
+                : () => props.selectTransitTimeEstimateMode(mode)
+            }
             disabled={estimate === 'loading'}
             className={cn(
               'flex-1 w-0',
+              editable ? null : 'cursor-default',
               props.hoveredMode === mode && 'bg-accent',
             )}
           >
@@ -298,15 +311,17 @@ function EstimateList({
           </Button>
         </StepPopover>
       ))}
-      <Button
-        key="refresh"
-        variant="outline"
-        size="sm"
-        onClick={() => props.initTransitTimeEstimate()}
-        disabled={estimate === 'loading'}
-      >
-        <ReloadIcon className="h-3 w-3" />
-      </Button>
+      {!editable ? null : (
+        <Button
+          key="refresh"
+          variant="outline"
+          size="sm"
+          onClick={() => props.initTransitTimeEstimate()}
+          disabled={estimate === 'loading'}
+        >
+          <ReloadIcon className="h-3 w-3" />
+        </Button>
+      )}
     </div>
   );
 }
@@ -341,10 +356,20 @@ function StepPopover({
   steps,
   children,
   asChild,
-}: PropsWithChildren<{ steps: Array<Doc<'tripSteps'>>; asChild?: boolean }>) {
+  cursorDefault,
+}: PropsWithChildren<{
+  steps: Array<Doc<'tripSteps'>>;
+  asChild?: boolean;
+  cursorDefault?: boolean;
+}>) {
   return (
     <Tooltip>
-      <TooltipTrigger asChild={asChild}>{children}</TooltipTrigger>
+      <TooltipTrigger
+        asChild={asChild}
+        className={cn(cursorDefault ? 'cursor-default' : null)}
+      >
+        {children}
+      </TooltipTrigger>
       <TooltipContent>
         <StepPopoverContent steps={steps} />
       </TooltipContent>
